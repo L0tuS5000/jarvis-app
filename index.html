@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jarvis</title>
+<link rel="icon" type="image/svg+xml" href="jarvis-icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#070b14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<style>
+:root{
+  --bg:#070b14; --bg2:#0b1220; --panel:#0e1729cc; --panel-solid:#0e1729; --line:#1c2a44; --line2:#25385a;
+  --text:#e6eefc; --muted:#8aa0c2; --dim:#5b6f90;
+  --cyan:#3ee6ff; --cyan-dim:#1b8fa3; --amber:#ffb547; --red:#ff5d73; --green:#41e29a; --violet:#a98bff;
+  --radius:14px; --shadow:0 0 0 1px var(--line), 0 10px 30px -12px #000a;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace; --sans:Inter,system-ui,Segoe UI,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--sans);overflow:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb,var(--cyan) 14%,transparent), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, #2a1b5a40, transparent 60%),
+    linear-gradient(#ffffff05 1px, transparent 1px) 0 0/32px 32px,
+    linear-gradient(90deg,#ffffff05 1px, transparent 1px) 0 0/32px 32px;}
+a{color:var(--cyan);text-decoration:none} a:hover{text-decoration:underline}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-columns:220px 1fr;grid-template-rows:64px 1fr;height:100vh;position:relative}
+/* top bar */
+.top{grid-column:1/3;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:#070b14d9;backdrop-filter:blur(8px)}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;letter-spacing:.18em;font-size:15px}
+.orb{width:34px;height:34px;border-radius:50%;position:relative;cursor:pointer;border:none;padding:0;
+  background:radial-gradient(circle at 50% 50%, color-mix(in srgb,var(--cyan) 30%,#fff) 0 12%, var(--cyan) 22%, color-mix(in srgb,var(--cyan) 35%,#000) 55%, transparent 70%);
+  box-shadow:0 0 18px color-mix(in srgb,var(--cyan) 55%,transparent), inset 0 0 8px #fff6}
+.orb::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:1px solid color-mix(in srgb,var(--cyan) 40%,transparent);animation:spin 8s linear infinite;border-top-color:transparent;border-left-color:transparent}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 18px color-mix(in srgb,var(--cyan) 55%,transparent), inset 0 0 8px #fff6}50%{box-shadow:0 0 30px #3ee6ffcc, inset 0 0 12px #fffa}}
+.orb{animation:pulse 3.5s ease-in-out infinite}
+.top .spacer{flex:1}
+.chip{font:12px var(--mono);color:var(--muted);border:1px solid var(--line2);border-radius:999px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block;flex:none}
+.dot.ok{background:var(--green);box-shadow:0 0 8px var(--green)} .dot.warn{background:var(--amber);box-shadow:0 0 8px var(--amber)} .dot.bad{background:var(--red);box-shadow:0 0 8px var(--red)}
+.btn{border:1px solid var(--line2);background:#122039;border-radius:10px;padding:7px 12px;display:inline-flex;align-items:center;gap:8px;transition:.15s;white-space:nowrap}
+.btn:hover{border-color:var(--cyan-dim);background:#16284a;text-decoration:none}
+.btn.primary{background:linear-gradient(180deg,var(--cyan),var(--cyan-dim));border-color:var(--cyan);color:#05080f;font-weight:600}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.small{padding:4px 9px;font-size:12px;border-radius:8px}
+/* nav */
+.nav{border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:4px;background:#070b14b0}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;color:var(--muted);font-weight:500}
+.nav button:hover{background:#0f1a2e;color:var(--text)}
+.nav button.on{background:linear-gradient(90deg,#123049,#0e1a2e);color:var(--text);box-shadow:inset 2px 0 0 var(--cyan)}
+.nav .count{margin-left:auto;font:11px var(--mono);background:#ff5d7322;color:var(--red);border-radius:999px;padding:1px 7px}
+.nav .sep{height:1px;background:var(--line);margin:10px 4px}
+.nav .foot{margin-top:auto;font-size:12px;color:var(--dim);padding:8px 12px}
+/* main */
+main{overflow:auto;padding:24px 28px 40px}
+h1{font-size:22px;margin:0 0 4px;font-weight:600}
+h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;font-weight:600}
+.sub{color:var(--muted);margin:0 0 20px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+.g3{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.panel{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;position:relative;min-width:0}
+.panel.glow{box-shadow:0 0 0 1px color-mix(in srgb,var(--cyan) 27%,transparent), 0 0 40px -18px var(--cyan)}
+.need{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.need:first-of-type{border-top:none;padding-top:0}
+.need .n{font:600 12px var(--mono);color:var(--amber);background:#ffb54718;border:1px solid #ffb54744;border-radius:8px;min-width:28px;height:24px;display:grid;place-items:center}
+.need .t{flex:1;min-width:0}
+.md :is(p,ul,ol){margin:0 0 8px} .md ul,.md ol{padding-left:20px} .md code{font:12px var(--mono);background:#ffffff0d;padding:1px 5px;border-radius:5px}
+.md table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0} .md th,.md td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top} .md th{color:var(--muted);font-weight:600}
+.md h1{font-size:20px} .md h2{margin-top:20px}
+.agent{display:flex;flex-direction:column;gap:10px}
+.agent .hd{display:flex;align-items:center;gap:10px}
+.agent .name{font-weight:600;font-size:15px}
+.agent .role{color:var(--muted);font-size:13px;min-height:20px}
+.agent .state{font-size:13px}
+.agent .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.tag{font:11px var(--mono);color:var(--muted);border:1px solid var(--line2);border-radius:6px;padding:1px 6px}
+.board{display:grid;grid-template-columns:repeat(4,minmax(200px,1fr));gap:14px;overflow-x:auto}
+.col{background:#0b1322;border:1px solid var(--line);border-radius:12px;padding:12px;min-height:200px}
+.col h3{margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between;color:var(--muted)}
+.card{background:var(--panel-solid);border:1px solid var(--line2);border-radius:10px;padding:10px;margin-bottom:10px}
+.card .tt{font-weight:600;margin-bottom:4px}
+.card .meta{display:flex;gap:6px;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{font-size:12px;color:var(--muted)}
+input,textarea,select{font:inherit;color:var(--text);background:#091120;border:1px solid var(--line2);border-radius:10px;padding:9px 11px;outline:none;width:100%}
+input:focus,textarea:focus,select:focus{border-color:var(--cyan-dim);box-shadow:0 0 0 3px color-mix(in srgb,var(--cyan) 14%,transparent)}
+textarea{resize:vertical;min-height:80px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.list{list-style:none;padding:0;margin:0}
+.list li{padding:8px 0;border-top:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
+.list li:first-child{border-top:none}
+.mono{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)} .empty{color:var(--dim);font-style:italic}
+.files{columns:3 220px;column-gap:20px} .files a{display:block;padding:3px 0;break-inside:avoid}
+.toast{position:fixed;bottom:22px;right:22px;background:#0f2238;border:1px solid var(--cyan-dim);padding:10px 14px;border-radius:10px;box-shadow:0 10px 30px #000a;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:50}
+.toast.on{opacity:1;transform:none}
+/* connect screen */
+.connect{position:fixed;inset:0;display:grid;place-items:center;z-index:40;background:radial-gradient(800px 500px at 50% 40%,#0f3a5a66,transparent),var(--bg)}
+.connect .box{max-width:460px;text-align:center;padding:30px}
+.connect .orb{width:96px;height:96px;margin:0 auto 22px;display:block}
+.connect h1{font-size:26px;letter-spacing:.2em}
+.hidden{display:none!important}
+/* voice drawer */
+.drawer{position:fixed;right:20px;top:76px;width:360px;max-width:calc(100vw - 40px);background:var(--panel-solid);border:1px solid var(--cyan-dim);border-radius:16px;box-shadow:0 20px 60px #000c, 0 0 40px -10px color-mix(in srgb,var(--cyan) 40%,transparent);padding:18px;z-index:30}
+
+/* backgrounds */
+body.bg-stars::before{background:
+  radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb,var(--cyan) 14%,transparent), transparent 60%),
+  radial-gradient(1px 1px at 20% 30%,#fff8 50%,transparent 51%) 0 0/180px 180px,
+  radial-gradient(1px 1px at 70% 80%,#fff6 50%,transparent 51%) 0 0/240px 240px,
+  radial-gradient(1.5px 1.5px at 40% 60%,#fff5 50%,transparent 51%) 0 0/310px 310px}
+body.bg-plain::before{background:radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb,var(--cyan) 10%,transparent), transparent 60%)}
+/* reactor hero */
+.hero{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:center;margin-bottom:18px}
+.reactor{width:280px;height:280px;position:relative}
+.reactor svg{width:100%;height:100%;overflow:visible}
+.reactor .spinA{transform-origin:140px 140px;animation:spin 40s linear infinite}
+.reactor .spinB{transform-origin:140px 140px;animation:spin 26s linear infinite reverse}
+.reactor .core{filter:drop-shadow(0 0 18px var(--cyan))}
+.reactor .seg{cursor:pointer;transition:stroke-width .15s}
+.reactor .seg:hover{stroke-width:12}
+.reactor .center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;pointer-events:none}
+.reactor .big{font:700 44px/1 var(--mono);text-shadow:0 0 18px var(--cyan)}
+.reactor .lbl{font:11px var(--mono);letter-spacing:.2em;color:var(--muted);margin-top:4px}
+.legend{display:grid;gap:6px}
+.legend .it{display:flex;align-items:center;gap:10px;font-size:13px}
+.legend .sw{width:22px;height:4px;border-radius:2px}
+/* boot */
+.boot{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:radial-gradient(800px 500px at 50% 40%,color-mix(in srgb,var(--cyan) 12%,transparent),transparent),var(--bg);transition:opacity .5s}
+.boot.out{opacity:0;pointer-events:none}
+.boot .inner{width:min(520px,90vw)}
+.boot .orb{width:110px;height:110px;margin:0 auto 26px;display:block}
+.boot .lines{font:13px/1.9 var(--mono);color:var(--muted);min-height:190px}
+.boot .lines .ok{color:var(--green)} .boot .lines .warn{color:var(--amber)} .boot .lines .bad{color:var(--red)}
+.boot .bar{height:2px;background:var(--line);border-radius:2px;overflow:hidden;margin:14px 0}
+.boot .bar i{display:block;height:100%;width:0;background:var(--cyan);box-shadow:0 0 10px var(--cyan);transition:width .25s}
+.boot .go{display:flex;justify-content:center;gap:10px;margin-top:10px}
+/* command bar */
+.cmdk{position:fixed;inset:0;z-index:55;background:#03060cb3;backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:flex-start;padding-top:12vh}
+.cmdk .box{width:min(640px,92vw);background:var(--panel-solid);border:1px solid var(--cyan-dim);border-radius:16px;box-shadow:0 30px 80px #000d,0 0 50px -20px var(--cyan);overflow:hidden}
+.cmdk input{border:none;border-bottom:1px solid var(--line);border-radius:0;padding:16px 18px;font-size:16px;background:transparent}
+.cmdk input:focus{box-shadow:none}
+.cmdk ul{list-style:none;margin:0;padding:6px;max-height:50vh;overflow:auto}
+.cmdk li{padding:9px 12px;border-radius:10px;display:flex;gap:10px;align-items:center;cursor:pointer}
+.cmdk li.sel{background:color-mix(in srgb,var(--cyan) 14%,transparent)}
+.cmdk li .k{font:11px var(--mono);color:var(--dim);margin-left:auto}
+.cmdk .hint{font:11px var(--mono);color:var(--dim);padding:8px 16px;border-top:1px solid var(--line)}
+kbd{font:11px var(--mono);border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--muted)}
+/* stats */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-bottom:16px}
+.tile .v{font:700 32px/1.1 var(--mono)} .tile .l{color:var(--muted);font-size:12px;margin-top:4px}
+.chart svg{width:100%;height:auto;display:block}
+.chart .bar{fill:var(--cyan);opacity:.85} .chart .bar:hover,.chart .hit:hover + .bar{opacity:1}
+.chart .axis{fill:var(--muted);font:11px var(--mono)} .chart .grid{stroke:var(--line);stroke-width:1}
+.tip{position:fixed;z-index:70;pointer-events:none;background:#0a1424;border:1px solid var(--line2);border-radius:8px;padding:6px 9px;font:12px var(--sans);box-shadow:0 8px 20px #000a;opacity:0;transition:opacity .1s}
+.tip.on{opacity:1}
+details.tbl summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:8px}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatch{width:34px;height:34px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.swatch.on{border-color:#fff;box-shadow:0 0 12px currentColor}
+.toggle{display:flex;align-items:center;gap:10px;padding:6px 0}
+.toggle input{width:auto}
+@media (max-width:900px){.hero{grid-template-columns:1fr;justify-items:center}}
+@media (prefers-reduced-motion:reduce){.reactor .spinA,.reactor .spinB{animation:none}}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto;height:100dvh}
+  .top{grid-column:1;padding:calc(env(safe-area-inset-top) + 8px) 14px 8px;gap:8px;flex-wrap:wrap}
+  .top .chip#clock,.top #cmdkBtn,.top #refreshBtn,.top a[href^="obsidian"],.top #tgBtn{display:none}
+  .top .spacer{display:none}.top .brand{margin-right:auto}
+  [data-cmdk]{display:none}
+  .toast{left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 76px);text-align:center}
+  .top #hermesChip,.top #roundChip{order:5;font-size:11px}
+  .nav{grid-row:3;flex-direction:row;overflow-x:auto;gap:2px;padding:6px 8px calc(env(safe-area-inset-bottom) + 6px);border-right:none;border-top:1px solid var(--line);background:#070b14f2;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .nav button{flex:none;padding:9px 12px;font-size:13px}
+  .nav button.on{box-shadow:inset 0 -2px 0 var(--cyan)}
+  .nav .sep,.nav .foot{display:none}
+  main{padding:16px 14px 24px}
+  .g2{grid-template-columns:1fr}
+  .board{grid-template-columns:repeat(4,minmax(230px,1fr))}
+  .reactor{width:220px;height:220px}
+  .drawer{top:auto;bottom:calc(env(safe-area-inset-bottom) + 70px);right:10px;left:10px;width:auto}
+  .cmdk{padding-top:8vh}
+  h1{font-size:20px}
+}
+@media (prefers-reduced-motion:reduce){.orb,.orb::after{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="boot hidden" id="boot"><div class="inner">
+  <button class="orb" aria-hidden="true" tabindex="-1"></button>
+  <div class="lines" id="bootLines"></div>
+  <div class="bar"><i id="bootBar"></i></div>
+  <div class="go hidden" id="bootGo"><button class="btn primary" id="bootEngage">Engage</button><button class="btn" id="bootSkip">Skip greeting</button></div>
+</div></div>
+<div class="cmdk hidden" id="cmdk"><div class="box" role="dialog" aria-label="Command bar">
+  <input id="cmdkInput" placeholder="Type a command, an agent, a note... (try: ask yt/tt, fix, task, theme)" autocomplete="off">
+  <ul id="cmdkList"></ul>
+  <div class="hint"><kbd>↑</kbd> <kbd>↓</kbd> to move · <kbd>Enter</kbd> to run · <kbd>Esc</kbd> to close</div>
+</div></div>
+<div class="tip" id="tip"></div>
+
+<div class="connect hidden" id="connect">
+  <div class="box">
+    <button class="orb" aria-hidden="true" tabindex="-1"></button>
+    <h1>JARVIS</h1>
+    <p class="muted" id="connectMsg">Connect your TCC vault so Jarvis can show you briefs, tasks and agents. Pick the folder <span class="mono">C:\Users\leotu\Documents\TCC</span>.</p>
+    <div class="row" style="justify-content:center;margin-top:18px">
+      <button class="btn primary" id="connectBtn">Connect vault</button>
+      <a class="btn" href="?demo">Preview with sample data</a>
+    </div>
+    <div id="ghBox" class="hidden" style="text-align:left;margin-top:18px">
+      <div class="field"><label for="ghRepo">Vault on GitHub (owner/repo)</label><input id="ghRepo" value="L0tuS5000/tcc-vault" autocapitalize="off" autocorrect="off"></div>
+      <div class="field"><label for="ghToken">GitHub access token (fine-grained, only this repo, Contents read and write)</label><input id="ghToken" type="password" placeholder="github_pat_..." autocapitalize="off" autocorrect="off"></div>
+      <button class="btn primary" id="ghConnect" style="width:100%;justify-content:center">Connect</button>
+      <p class="muted" style="font-size:12px">The token stays on this device only. Jarvis uses it to read the vault and to save your requests and tasks.</p>
+    </div>
+    <p style="margin-top:14px"><a href="#" id="ghToggle">Use GitHub instead (for phones)</a></p>
+    <p class="mono" id="connectErr" style="color:var(--red);margin-top:14px"></p>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand"><button class="orb" id="orb" title="Talk to Jarvis" aria-label="Talk to Jarvis"></button>JARVIS</div>
+    <span class="chip" id="hermesChip"><span class="dot"></span>Hermes</span>
+    <span class="chip" id="roundChip"><span class="dot"></span>Last round</span>
+    <div class="spacer"></div>
+    <span class="chip" id="clock"></span>
+    <button class="btn small" id="cmdkBtn" title="Command bar">⌘ <kbd>Ctrl K</kbd></button>
+    <button class="btn small" id="refreshBtn" title="Reload from the vault">Refresh</button>
+    <a class="btn small" id="tgBtn" href="#" target="_blank" rel="noopener">Telegram</a>
+    <a class="btn small" href="obsidian://open?vault=TCC">Open vault</a>
+    <button class="btn small" id="nowBtn" title="Live chat with Jarvis Desk">Fix it now</button>
+    <button class="btn small primary" id="talkBtn">Talk</button>
+  </header>
+
+  <nav class="nav" id="nav">
+    <button data-view="overview" class="on">Overview <span class="count hidden" id="needCount"></span></button>
+    <button data-view="brief">Brief</button>
+    <button data-view="tasks">Tasks</button>
+    <button data-view="agents">Agents</button>
+    <button data-view="vault">Vault</button>
+    <button data-view="stats">Stats</button>
+    <button data-view="activity">Activity</button>
+    <div class="sep"></div>
+    <button data-view="settings">Settings</button>
+    <div class="foot" id="foot">Not connected</div>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<div class="drawer hidden" id="drawer">
+  <div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Talk to Jarvis</h2><button class="btn small" id="drawerClose">Close</button></div>
+  <p class="muted" style="margin-top:0">Tap the voice button at the bottom-right of the window to start talking. Voice Jarvis knows today's brief, and what you tell him gets acted on at the next round.</p>
+  <div id="voiceSlot"></div>
+  <div class="row" style="margin-top:12px">
+    <a class="btn small" id="voiceLink" target="_blank" rel="noopener" href="#">Open voice in browser</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ---------- config ---------- */
+const VOICE_AGENT = "agent_9201m6n6wecbfwxb2yvgewjc6wa3";
+const VAULT_NAME = "TCC";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const settings = (() => { try { return JSON.parse(localStorage.getItem("jarvis.settings") || "{}"); } catch { return {}; } })();
+const saveSettings = () => { try { localStorage.setItem("jarvis.settings", JSON.stringify(settings)); } catch {} };
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2600); }
+const obsidianLink = path => `obsidian://open?vault=${encodeURIComponent(VAULT_NAME)}&file=${encodeURIComponent(path.replace(/\.md$/,""))}`;
+const sessionLink = id => `https://claude.ai/code/${encodeURIComponent(id)}`;
+
+/* ---------- markdown ---------- */
+function md(text){
+  const withLinks = String(text||"").replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, f, label) => `[${label||f}](${obsidianLink(f)})`);
+  const html = marked.parse(withLinks, {gfm:true, breaks:false});
+  return DOMPurify.sanitize(html, {ALLOWED_URI_REGEXP:/^(?:https?|obsidian|tg|mailto):/i, ADD_ATTR:["target"]});
+}
+function mdInline(text){ return md(text).replace(/^<p>|<\/p>\s*$/g,""); }
+
+/* ---------- vault access (File System Access API, or demo data) ---------- */
+const DB = { open(){ return new Promise((res,rej)=>{ const r=indexedDB.open("jarvis",1); r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
+  async get(k){ const db=await this.open(); return new Promise(res=>{ const q=db.transaction("kv").objectStore("kv").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>res(undefined); }); },
+  async set(k,v){ const db=await this.open(); return new Promise(res=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); } };
+
+class FsVault {
+  constructor(root){ this.root=root; }
+  async dir(path, create=false){ let d=this.root; for (const p of path.split("/").filter(Boolean)) d=await d.getDirectoryHandle(p,{create}); return d; }
+  async read(path){ try { const parts=path.split("/"); const name=parts.pop(); const d=await this.dir(parts.join("/")); const f=await (await d.getFileHandle(name)).getFile(); return await f.text(); } catch { return null; } }
+  async list(path){ try { const d=await this.dir(path); const out=[]; for await (const [name,h] of d.entries()) out.push({name, kind:h.kind}); return out.sort((a,b)=>a.name.localeCompare(b.name)); } catch { return []; } }
+  async write(path, text){ const parts=path.split("/"); const name=parts.pop(); const d=await this.dir(parts.join("/"), true); const w=await (await d.getFileHandle(name,{create:true})).createWritable(); await w.write(text); await w.close(); }
+}
+class DemoVault {
+  constructor(files){ this.files=files; }
+  async read(p){ return this.files[p] ?? null; }
+  async list(path){ const pre=path.replace(/\/?$/,"/"); const seen=new Map(); for (const k of Object.keys(this.files)) if (k.startsWith(pre)) { const rest=k.slice(pre.length); const [head,...more]=rest.split("/"); seen.set(head, more.length?"directory":"file"); } return [...seen].map(([name,kind])=>({name,kind})).sort((a,b)=>a.name.localeCompare(b.name)); }
+  async write(p,t){ this.files[p]=t; }
+}
+class GitHubVault {
+  constructor(repo, token){ this.repo=repo; this.token=token; this.shas={}; }
+  api(path, opts={}){ return fetch(`https://api.github.com/repos/${this.repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`+(opts.method?"":"?ref=main"),
+    {...opts, cache:"no-store", headers:{Authorization:`Bearer ${this.token}`, "X-GitHub-Api-Version":"2022-11-28", ...(opts.headers||{})}}); }
+  async read(path){ const r=await this.api(path,{headers:{Accept:"application/vnd.github.raw+json"}}); if (r.status===404) return null; if (!r.ok) throw new Error(`GitHub ${r.status}`); return await r.text(); }
+  async list(path){ const r=await this.api(path,{headers:{Accept:"application/vnd.github+json"}}); if (!r.ok) return []; const j=await r.json(); if(!Array.isArray(j)) return [];
+    for (const f of j) this.shas[f.path]=f.sha; return j.map(f=>({name:f.name, kind:f.type==="dir"?"directory":"file"})).sort((a,b)=>a.name.localeCompare(b.name)); }
+  async write(path, text){
+    const m=await this.api(path,{headers:{Accept:"application/vnd.github+json"}}); const sha=m.ok?(await m.json()).sha:undefined;
+    const bytes=new TextEncoder().encode(text); let bin=""; bytes.forEach(b=>bin+=String.fromCharCode(b));
+    const r=await this.api(path,{method:"PUT", headers:{Accept:"application/vnd.github+json","Content-Type":"application/json"},
+      body:JSON.stringify({message:`jarvis app: update ${path}`, content:btoa(bin), branch:"main", ...(sha?{sha}:{})})});
+    if (!r.ok) throw new Error(`Couldn't save to GitHub (${r.status}). Check the token has Contents: read and write.`); }
+}
+let vault = null;
+
+/* ---------- parsing ---------- */
+function sections(mdText){ const out={}; let cur="_top"; out[cur]=[]; for (const line of (mdText||"").split(/\r?\n/)) { const m=line.match(/^##\s+(.*)/); if (m){ cur=m[1].trim(); out[cur]=[]; } else out[cur].push(line); } for (const k in out) out[k]=out[k].join("\n").trim(); return out; }
+function numbered(text){ const items=[]; let cur=null; for (const line of (text||"").split(/\r?\n/)) { const m=line.match(/^\s*(\d+)\.\s+(.*)/); if (m){ cur={n:m[1], text:m[2]}; items.push(cur); } else if (cur && line.trim()) cur.text+=" "+line.trim(); } return items; }
+function table(text){ const rows=(text||"").split(/\r?\n/).filter(l=>/^\s*\|/.test(l)); if (rows.length<2) return []; const cells=l=>l.trim().replace(/^\||\|$/g,"").split("|").map(c=>c.trim()); const head=cells(rows[0]); return rows.slice(2).map(r=>{ const c=cells(r); const o={}; head.forEach((h,i)=>o[h]=c[i]??""); return o; }); }
+function frontmatter(text){ const m=(text||"").match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/); const fm={}; if (!m) return {fm, body:text||""}; for (const l of m[1].split(/\r?\n/)) { const k=l.match(/^(\w[\w-]*):\s*(.*?)\s*(#.*)?$/); if (k) fm[k[1]]=k[2]; } return {fm, body:m[2]}; }
+function kv(text){ const o={}; for (const l of (text||"").split(/\r?\n/)) { const m=l.match(/^\s*-?\s*([\w_]+):\s*(.*)$/); if (m) o[m[1]]=m[2].trim(); } return o; }
+function stateDot(s){ s=(s||"").toLowerCase(); if (/block|offline|broken|missing|fail|error|not set/.test(s)) return /offline|fail|error|broken/.test(s)?"bad":"warn"; if (/live|ready|idle|done|ok|online|running|working|moving/.test(s)) return "ok"; return ""; }
+
+/* ---------- state ---------- */
+const S = { brief:null, briefDate:null, briefs:[], agentsMd:"", tasks:[], heartbeat:{}, changelog:"", contactLog:"", log:"", memory:"", view:"overview" };
+
+async function loadAll(){
+  const [briefList, agentsMd, hb, changelog, contactLog, log, memory, taskList] = await Promise.all([
+    vault.list("_jarvis/briefs"), vault.read("_jarvis/agents.md"), vault.read("_jarvis/heartbeats/hermes.md"),
+    vault.read("_jarvis/changelog.md"), vault.read("_jarvis/brain/contact-log.md"), vault.read("log.md"),
+    vault.read("_jarvis/brain/memory.md"), vault.list("_jarvis/tasks")]);
+  S.briefs = briefList.filter(f=>/^\d{4}-\d{2}-\d{2}\.md$/.test(f.name)).map(f=>f.name.slice(0,10)).sort().reverse();
+  if (!S.briefDate || !S.briefs.includes(S.briefDate)) S.briefDate = S.briefs[0] || null;
+  S.brief = S.briefDate ? await vault.read(`_jarvis/briefs/${S.briefDate}.md`) : null;
+  S.agentsMd = agentsMd || ""; S.heartbeat = kv(hb); S.changelog = changelog || ""; S.contactLog = contactLog || ""; S.log = log || ""; S.memory = memory || "";
+  const files = taskList.filter(f=>f.kind==="file" && /\.md$/.test(f.name) && !/^(TEMPLATE|README)\.md$/.test(f.name));
+  S.tasks = await Promise.all(files.map(async f=>{ const t=await vault.read(`_jarvis/tasks/${f.name}`); const {fm,body}=frontmatter(t); const title=(body.match(/^#\s+(.*)/m)||[])[1]||f.name; return {file:f.name, title, body, ...fm}; }));
+  renderChrome(); render(); checkAlerts();
+  if(!S._booted){ S._booted=true; runBoot(); }
+}
+
+/* ---------- derived ---------- */
+function briefParts(){ const s=sections(S.brief); return { top:s._top||"", needs:numbered(s["Needs Leotus"]||s["Needs you"]||""), moving:s["Moving"]||"", done:s["Done today"]||"", health:table(s["Agent health"]||""), raw:s }; }
+function claudeProfiles(){
+  const rows = table(sections(S.agentsMd)["Claude profiles (cloud, Claude Code sessions)"] || "");
+  return rows.map(r=>({ name:(r["Profile"]||"").replace(/\*\*/g,"").replace(/\s*\(.*\)/,"").trim(), full:(r["Profile"]||"").replace(/\*\*/g,""), keywords:r["Topic keywords"]||"", session:((r["Session"]||"").match(/session_[A-Za-z0-9]+/)||[])[0]||null, control:r["Controlled by"]||"" }));
+}
+function jarvisDesk(){ return (S.agentsMd.match(/Jarvis Desk session[^\n]*?(session_[A-Za-z0-9]+)/)||[])[1] || null; }
+async function copyText(t){ try { await navigator.clipboard.writeText(t); return true; } catch { const a=document.createElement("textarea"); a.value=t; document.body.appendChild(a); a.select(); let ok=false; try{ ok=document.execCommand("copy"); }catch{} a.remove(); return ok; } }
+async function fixNow(text){
+  const id=jarvisDesk(); if (!id) return toast("No Jarvis Desk session in agents.md yet");
+  text=(text||"").trim();
+  if (text){ await copyText(text); toast("Copied. Paste it into Jarvis Desk (Ctrl+V)."); } else toast("Opening Jarvis Desk");
+  window.open(sessionLink(id),"_blank","noopener");
+}
+function jarvisHq(){ return (S.agentsMd.match(/Jarvis HQ[^\n]*?(session_[A-Za-z0-9]+)/)||[])[1] || null; }
+function hermesStatus(){
+  const ls = S.heartbeat.last_seen; if (!ls) return {dot:"bad", text:"No heartbeat"};
+  const m = ls.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}):(\d{2})/); if (!m) return {dot:"warn", text:ls};
+  const [y,mo,d]=m[1].split("-").map(Number); const now=new Date(); const chicago=new Date(now.toLocaleString("en-US",{timeZone:"America/Chicago"}));
+  const seen=new Date(y,mo-1,d,+m[2],+m[3]); const hrs=(chicago-seen)/36e5;
+  const ago = hrs<1 ? `${Math.max(0,Math.round(hrs*60))} min ago` : `${hrs.toFixed(1)} h ago`;
+  return {dot: hrs<=6?"ok":"bad", text:`${hrs<=6?"Online":"Offline"} · seen ${ago}`, hrs};
+}
+function healthFor(name){ const h=briefParts().health.find(r=>(r.Agent||"").toLowerCase().startsWith(name.toLowerCase().slice(0,6))); return h ? {state:h.State||"", notes:h.Notes||""} : null; }
+
+/* ---------- chrome ---------- */
+function renderChrome(){
+  const hs=hermesStatus(); $("#hermesChip").innerHTML=`<span class="dot ${hs.dot}"></span>Hermes · ${esc(hs.text)}`;
+  const lr=(S.brief||"").match(/Last round:\s*([^.(\n]+)/) || (S.brief||"").match(/^#[^\n]*\((\d{1,2}:\d{2}\s*[AP]M[^)]*)\)/m); $("#roundChip").innerHTML=`<span class="dot ${lr?"ok":"warn"}"></span>${lr?"Last round "+esc(lr[1].trim()):"No brief yet"}`;
+  const needs=briefParts().needs.length; const c=$("#needCount"); c.textContent=needs; c.classList.toggle("hidden",!needs);
+  $("#tgBtn").href = settings.telegramBot ? `https://t.me/${settings.telegramBot.replace(/^@/,"")}` : "#settings";
+  $("#tgBtn").onclick = e => { if (!settings.telegramBot){ e.preventDefault(); go("settings"); toast("Add your Jarvis bot's username first"); } };
+  $("#foot").textContent = vault instanceof DemoVault ? "Sample data (demo)" : vault instanceof GitHubVault ? "Vault via GitHub" : "Vault connected";
+}
+function tick(){ $("#clock").textContent = new Date().toLocaleString("en-US",{timeZone:"America/Chicago",weekday:"short",hour:"numeric",minute:"2-digit"}) + " CT"; }
+
+/* ---------- views ---------- */
+const views = {
+overview(){
+  const b=briefParts(); const profiles=claudeProfiles(); const hs=hermesStatus();
+  const needs = b.needs.length ? b.needs.map(n=>`<div class="need"><div class="n">${esc(n.n)}</div><div class="t md">${mdInline(n.text)}</div></div>`).join("") : `<p class="empty">Nothing needs you right now.</p>`;
+  const strip = [...profiles.map(p=>({name:p.name, h:healthFor(p.name), link:p.session&&sessionLink(p.session)})),
+    {name:"Hermes", h:{state:hs.text}, link:null}].map(a=>`<div class="row" style="justify-content:space-between;padding:7px 0;border-top:1px solid var(--line)"><span><span class="dot ${stateDot(a.h?.state)}"></span>&nbsp; ${esc(a.name)}</span><span class="muted" style="font-size:12px;text-align:right">${esc(a.h?.state||"no data")}</span></div>`).join("");
+  return `<div class="hero">${reactor()}
+    <div><h1>Good ${partOfDay()}, Leotus.</h1><p class="sub" style="margin-bottom:14px">${b.top?mdInline(b.top.split("\n").filter(l=>l.trim()&&!l.startsWith("#"))[0]||""):"No brief yet today. Jarvis writes one every round."}</p>
+      <div class="legend">${teamStatus().map(a=>`<div class="it"><span class="sw" style="background:${statusColor(a.dot)}"></span><b style="font-weight:600">${esc(a.name)}</b><span class="muted">${esc(a.state)}</span></div>`).join("")}</div>
+      <div class="row" style="margin-top:14px"><button class="btn small" data-brief-me>Brief me out loud</button><button class="btn small" data-cmdk>Command bar <kbd>Ctrl K</kbd></button></div></div></div>
+  <div class="grid g2">
+    <section class="panel glow"><h2>Needs you · ${b.needs.length}</h2>${needs}</section>
+    <div class="grid" style="align-content:start">
+      <section class="panel"><h2>Ask Jarvis</h2>${askForm()}</section>
+    </div>
+    <section class="panel"><h2>Moving</h2><div class="md">${b.moving?md(b.moving):'<p class="empty">Nothing listed</p>'}</div></section>
+    <section class="panel"><h2>Done today</h2><div class="md">${b.done?md(b.done):'<p class="empty">Nothing yet</p>'}</div></section>
+  </div>`;
+},
+brief(){
+  const opts=S.briefs.map(d=>`<option ${d===S.briefDate?"selected":""}>${d}</option>`).join("");
+  return `<div class="row" style="justify-content:space-between;margin-bottom:16px"><h1>Daily brief</h1>
+    <div class="row">${S.briefs.length?`<select id="briefPick" style="width:auto">${opts}</select>`:""}${S.briefDate?`<a class="btn small" href="${obsidianLink("_jarvis/briefs/"+S.briefDate)}">Open in Obsidian</a>`:""}</div></div>
+    <section class="panel md">${S.brief?md(S.brief):'<p class="empty">No briefs yet.</p>'}</section>`;
+},
+tasks(){
+  const cols={open:"Open",doing:"Doing",blocked:"Blocked",done:"Done"};
+  const board=Object.entries(cols).map(([k,label])=>{ const items=S.tasks.filter(t=>(t.status||"open").toLowerCase()===k);
+    return `<div class="col"><h3>${label}<span>${items.length}</span></h3>${items.map(t=>`<div class="card"><div class="tt">${esc(t.title)}</div><div class="meta"><span class="tag">${esc(t.assignee||"?")}</span><span class="tag">${esc(t.priority||"normal")}</span>${t.created?`<span class="tag">${esc(t.created)}</span>`:""}</div><div style="margin-top:6px"><a href="${obsidianLink("_jarvis/tasks/"+t.file)}" class="mono">Open note</a></div></div>`).join("")||'<p class="empty" style="font-size:12px">None</p>'}</div>`; }).join("");
+  return `<h1>Tasks</h1><p class="sub">Work Jarvis hands out. Hermes checks for his every 2 hours.</p>
+  <div class="board">${board}</div>
+  <section class="panel" style="margin-top:18px;max-width:720px"><h2>New task</h2>
+    <div class="row" style="gap:12px;align-items:flex-start">
+      <div class="field" style="flex:2;min-width:220px"><label for="tTitle">Title</label><input id="tTitle" placeholder="List today's new leads"></div>
+      <div class="field" style="flex:1;min-width:120px"><label for="tWho">For</label><select id="tWho"><option value="hermes">Hermes</option><option value="claude">Claude</option></select></div>
+      <div class="field" style="flex:1;min-width:120px"><label for="tPri">Priority</label><select id="tPri"><option>normal</option><option>high</option><option>low</option></select></div>
+    </div>
+    <div class="field"><label for="tBody">What to do, and what done looks like</label><textarea id="tBody"></textarea></div>
+    <button class="btn primary" id="tSave">Create task</button></section>`;
+},
+agents(){
+  const hs=hermesStatus(); const hq=jarvisHq();
+  const cards=claudeProfiles().map(p=>{ const h=healthFor(p.name); return `<section class="panel agent"><div class="hd"><span class="dot ${stateDot(h?.state)}"></span><span class="name">${esc(p.full)}</span><span class="tag">Claude</span></div>
+    <div class="role">${esc(p.keywords)}</div><div class="state">${h?`<b>${esc(h.state)}</b> <span class="muted">${esc(h.notes)}</span>`:'<span class="muted">No status in brief</span>'}</div>
+    <div class="acts">${p.session?`<a class="btn small primary" target="_blank" rel="noopener" href="${sessionLink(p.session)}">Open chat</a>`:'<span class="muted" style="font-size:12px">No session yet</span>'}<button class="btn small" data-ask="${esc(p.name)}">Ask via Jarvis</button></div></section>`; }).join("");
+  const prompts=[["default","scripts/hermes-default-prompt.txt"],["business","scripts/hermes-business-prompt.txt"],["tiktok","scripts/hermes-tiktok-prompt.txt"]];
+  return `<h1>Agents</h1><p class="sub">Open any coworker's chat, or send them something through Jarvis.</p>
+  <div class="grid g3">
+    <section class="panel agent glow"><div class="hd"><button class="orb" style="width:22px;height:22px" data-talk aria-label="Talk to Jarvis"></button><span class="name">Jarvis</span><span class="tag">chief of staff</span></div>
+      <div class="role">Runs rounds every 2 hours, 7 AM to 11 PM. Talk, text or type.</div>
+      <div class="acts"><button class="btn small primary" data-talk>Talk</button>${jarvisDesk()?`<a class="btn small" target="_blank" rel="noopener" href="${sessionLink(jarvisDesk())}">Jarvis Desk</a>`:""}${hq?`<a class="btn small" target="_blank" rel="noopener" href="${sessionLink(hq)}">Jarvis HQ</a>`:""}<a class="btn small" href="${$("#tgBtn").href}" target="_blank" rel="noopener">Telegram</a></div></section>
+    ${cards}
+    <section class="panel agent"><div class="hd"><span class="dot ${hs.dot}"></span><span class="name">Hermes</span><span class="tag">local PC</span></div>
+      <div class="role">Research, weekly briefing, leads, X posts. Works in the vault.</div>
+      <div class="state"><b>${esc(hs.text)}</b> <span class="muted">· ${esc(S.heartbeat.open_tasks??"?")} open tasks · errors: ${esc(S.heartbeat.errors||"none")}</span></div>
+      <div class="acts">${prompts.map(([n,p])=>`<a class="btn small" href="${obsidianLink(p)}">${n} prompt</a>`).join("")}<button class="btn small" data-view-go="tasks">Give a task</button></div></section>
+  </div>`;
+},
+vault(){
+  const entries=[...S.log.matchAll(/^## \[(\d{4}-\d{2}-\d{2})\]\s*([^|\n]*)\|\s*(.*)$/gm)].slice(-15).reverse();
+  return `<div class="row" style="justify-content:space-between;margin-bottom:16px"><h1>Vault</h1><a class="btn primary" href="obsidian://open?vault=${VAULT_NAME}">Open TCC in Obsidian</a></div>
+  <div class="grid g2">
+    <section class="panel"><h2>Latest activity (log.md)</h2><ul class="list">${entries.map(e=>`<li><span class="mono">${e[1]}</span><span><span class="tag">${esc(e[2].trim())}</span> ${esc(e[3])}</span></li>`).join("")||'<li class="empty">No log entries</li>'}</ul></section>
+    <section class="panel"><h2>Find a note</h2><input id="noteSearch" placeholder="Type to filter notes"><div id="noteList" class="files" style="margin-top:12px"></div></section>
+  </div>`;
+},
+activity(){
+  return `<h1>Activity</h1><p class="sub">Everything Jarvis changed and every time he contacted you.</p>
+  <div class="grid">
+    <section class="panel md"><h2>Changes to agents</h2>${md(S.changelog.replace(/^#.*$/m,""))}</section>
+    <section class="panel md"><h2>Contact log</h2>${md(S.contactLog.replace(/^#.*$/m,""))}</section>
+    <section class="panel md"><h2>Jarvis memory</h2>${md(S.memory.replace(/^#.*$/m,""))}</section>
+  </div>`;
+},
+stats(){
+  if(!S._briefHist){ loadBriefHistory(); }
+  const days=lastDays(14), ents=logEntries(), wk=lastDays(7);
+  const perDay=days.map(d=>({label:d, short:d.slice(8), value:ents.filter(e=>e.date===d).length}));
+  const who={}; ents.filter(e=>days.includes(e.date)).forEach(e=>who[e.who]=(who[e.who]||0)+1);
+  const whoData=Object.entries(who).sort((a,b)=>b[1]-a[1]).map(([label,value])=>({label,value}));
+  const st={open:0,doing:0,blocked:0,done:0}; S.tasks.forEach(t=>{ const k=(t.status||"open").toLowerCase(); if(k in st) st[k]++; });
+  const contacts=[...S.contactLog.matchAll(/^\|\s*(\d{4}-\d{2}-\d{2})/gm)].map(m=>m[1]).filter(d=>wk.includes(d)).length;
+  const needsHist=days.map(d=>({label:d, short:d.slice(8), value:S._briefHist?.[d]??0}));
+  const tile=(v,l)=>`<section class="panel tile"><div class="v">${v}</div><div class="l">${l}</div></section>`;
+  return `<h1>Stats</h1><p class="sub">The last 14 days, from the vault log, Jarvis's briefs and the task files.</p>
+  <div class="tiles">${tile(briefParts().needs.length,"Need you today")}${tile(st.open+st.doing+st.blocked,"Tasks in progress")}${tile(st.done,"Tasks done")}${tile(ents.filter(e=>wk.includes(e.date)).length,"Vault actions, 7 days")}${tile(contacts,"Times Jarvis pinged you, 7 days")}</div>
+  <div class="grid g2">
+    <section class="panel chart"><h2>Vault activity per day</h2>${vbars(perDay,{unit:" actions"})}${dataTable(perDay.map(d=>[d.label,d.value]),["Day","Actions"])}</section>
+    <section class="panel"><h2>Who did the work · 14 days</h2>${whoData.length?hbars(whoData):'<p class="empty">No log entries yet</p>'}${dataTable(whoData.map(d=>[d.label,d.value]),["Who","Actions"])}</section>
+    <section class="panel chart"><h2>Things that needed you, per day</h2>${S._briefHist?vbars(needsHist,{unit:" items"}):'<p class="empty">Loading briefs...</p>'}${dataTable(needsHist.map(d=>[d.label,d.value]),["Day","Items"])}</section>
+    <section class="panel"><h2>Tasks by status</h2>${hbars(Object.entries(st).map(([k,v])=>({label:k[0].toUpperCase()+k.slice(1),value:v})))}</section>
+  </div>`;
+},
+settings(){
+  const voices=("speechSynthesis" in window)?speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang)):[];
+  const perm=("Notification" in window)?Notification.permission:"unsupported";
+  const tog=(k,label,d=true)=>`<label class="toggle"><input type="checkbox" data-set="${k}" ${on1(k,d)?"checked":""}> ${label}</label>`;
+  return `<h1>Settings</h1><div class="grid g2" style="max-width:1000px">
+  <section class="panel"><h2>Look</h2>
+    <div class="field"><label>Accent color</label><div class="swatches">${Object.entries(THEMES).map(([k,v])=>`<button class="swatch ${ (settings.accent||"cyan")===k?"on":""}" data-accent="${k}" style="background:${v[0]};color:${v[0]}" aria-label="${k}" title="${k}"></button>`).join("")}</div></div>
+    <div class="field"><label for="setBg">Background</label><select id="setBg">${["grid","stars","plain"].map(b=>`<option ${ (settings.bg||"grid")===b?"selected":""}>${b}</option>`).join("")}</select></div>
+    ${tog("bootAnim","Boot-up sequence when Jarvis opens")}
+    ${tog("sounds","Sound effects")}
+  </section>
+  <section class="panel"><h2>Voice and alerts</h2>
+    ${tog("greeting","Daily greeting: Jarvis briefs you out loud the first time you open him each day")}
+    <div class="field"><label for="setVoice">Greeting voice (built into Windows, free)</label><select id="setVoice"><option value="">Automatic (British male if available)</option>${voices.map(v=>`<option ${settings.voice===v.name?"selected":""}>${esc(v.name)}</option>`).join("")}</select></div>
+    <div class="row" style="margin-bottom:14px"><button class="btn small" data-brief-me>Test: brief me now</button></div>
+    ${tog("alerts","Desktop alerts (new things that need you, Hermes offline, tasks finished)",false)}
+    <p class="muted" style="font-size:12px;margin:4px 0 0">Windows permission: <b>${perm}</b>${perm==="default"?` · <button class="btn small" id="askPerm">Allow notifications</button>`:perm==="denied"?` · blocked. Allow it in the browser's site settings (the lock icon), then reopen Jarvis`:""}. Alerts work while the Jarvis window is open, even minimized.</p>
+  </section>
+  <section class="panel"><h2>Connections</h2>
+    <div class="field"><label for="setBot">Jarvis Telegram bot username (for the Telegram button)</label><input id="setBot" placeholder="leotus_jarvis_bot" value="${esc(settings.telegramBot||"")}"></div>
+    <div class="row"><button class="btn primary" id="setSave">Save</button>${vault instanceof DemoVault?"":`<button class="btn" id="reconnect">Switch vault</button>`}</div>
+    <p class="muted" style="margin-top:16px;font-size:13px">The app reads and writes files in your vault folder on this PC. Obsidian Git syncs those changes to GitHub, where Jarvis sees them. Nothing is stored anywhere else.</p>
+  </section></div>`;
+}
+};
+function askForm(){ return `<div class="field"><textarea id="askText" placeholder="What do you need? e.g. The site's calendar page is broken" style="min-height:70px"></textarea></div>
+  <div class="row"><button class="btn primary" id="askNow" title="Opens Jarvis Desk with your message copied">Fix it now</button><button class="btn" id="askSave">Next round</button></div>
+  <p class="muted" style="font-size:12px;margin:8px 0 0"><b>Fix it now</b> opens a live chat with Jarvis Desk. Your message is copied, so just paste it. <b>Next round</b> drops it in his inbox for later.</p>`; }
+function partOfDay(){ const h=+new Date().toLocaleString("en-US",{timeZone:"America/Chicago",hour:"numeric",hour12:false}); return h<12?"morning":h<17?"afternoon":"evening"; }
+
+/* ---------- actions ---------- */
+async function safely(fn){ try { return await fn(); } catch(e){ toast(e.message||"Something went wrong"); } }
+async function addToInbox(text){
+  text=text.trim(); if (!text) return toast("Type something first");
+  const now=new Date().toLocaleString("sv-SE",{timeZone:"America/Chicago"}).slice(0,16);
+  let inbox=(await vault.read("_jarvis/inbox.md")) ?? "# Jarvis inbox\n\n";
+  inbox = inbox.replace(/\n- \[ \][ \t]*\n?$/,"\n"); // drop the empty placeholder line
+  inbox = inbox.replace(/\n*$/,"\n\n").replace(/(- \[[ x]\][^\n]*)\n\n$/,"$1\n") + `- [ ] ${now} (from the Jarvis app) ${text.replace(/\n+/g," / ")}\n`;
+  await vault.write("_jarvis/inbox.md", inbox); toast("Sent. Jarvis picks it up at his next round.");
+}
+async function createTask(){
+  const title=$("#tTitle").value.trim(); if (!title) return toast("Add a title");
+  const date=new Date().toLocaleString("sv-SE",{timeZone:"America/Chicago"}).slice(0,10);
+  const slug=title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"task";
+  let file=`${date}-${slug}.md`; let i=2; while (await vault.read(`_jarvis/tasks/${file}`)!==null) file=`${date}-${slug}-${i++}.md`;
+  const text=`---\nassignee: ${$("#tWho").value}\nstatus: open\npriority: ${$("#tPri").value}\ncreated: ${date}\nfrom: leotus (Jarvis app)\n---\n# ${title}\n\n## Task\n${$("#tBody").value.trim()||title}\n\n## Result\n(The agent fills this in.)\n`;
+  await vault.write(`_jarvis/tasks/${file}`, text); toast("Task created"); await loadAll();
+}
+async function renderNotes(filter=""){
+  const el=$("#noteList"); if (!el) return;
+  if (!S._notes){ S._notes=[]; for (const dir of ["entities","concepts","queries","comparisons"]) for (const f of await vault.list(dir)) if (f.kind==="file"&&f.name.endsWith(".md")) S._notes.push(`${dir}/${f.name}`); }
+  const q=filter.toLowerCase(); const hits=S._notes.filter(n=>n.toLowerCase().includes(q)).slice(0,120);
+  el.innerHTML=hits.map(n=>`<a href="${obsidianLink(n)}">${esc(n.replace(/\.md$/,""))}</a>`).join("")||'<span class="empty">No matches</span>';
+}
+
+/* ---------- render + events ---------- */
+function go(view){ S.view=view; document.querySelectorAll("#nav button[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===view)); render(); try{localStorage.setItem("jarvis.view",view);}catch{} }
+function render(){
+  $("#main").innerHTML = views[S.view]();
+  $("#main").scrollTop=0;
+  const on=(sel,ev,fn)=>{ const el=$(sel); if (el) el.addEventListener(ev,fn); };
+  on("#askSave","click",async()=>{ await safely(async()=>{ await addToInbox($("#askText").value); $("#askText").value=""; }); });
+  on("#askNow","click",async()=>{ await fixNow($("#askText").value); });
+  on("#briefPick","change",async e=>{ S.briefDate=e.target.value; S.brief=await vault.read(`_jarvis/briefs/${S.briefDate}.md`); render(); });
+  on("#tSave","click",()=>safely(createTask));
+  on("#noteSearch","input",e=>renderNotes(e.target.value));
+  on("#setSave","click",()=>{ settings.telegramBot=$("#setBot").value.trim(); saveSettings(); renderChrome(); toast("Saved"); });
+  on("#reconnect","click",()=>{ try{ localStorage.removeItem("jarvis.gh"); }catch{} vault=null; $("#connect").classList.remove("hidden"); showGh(!window.showDirectoryPicker); });
+  document.querySelectorAll("[data-talk]").forEach(b=>b.onclick=openTalk);
+  document.querySelectorAll("[data-brief-me]").forEach(b=>b.onclick=briefMe);
+  document.querySelectorAll("[data-cmdk]").forEach(b=>b.onclick=openCmdk);
+  document.querySelectorAll("[data-accent]").forEach(b=>b.onclick=()=>{ settings.accent=b.dataset.accent; saveSettings(); applyTheme(); render(); });
+  document.querySelectorAll("[data-set]").forEach(b=>b.onchange=async()=>{ settings[b.dataset.set]=b.checked; saveSettings();
+    if(b.dataset.set==="alerts" && b.checked && "Notification" in window && Notification.permission==="default"){ await Notification.requestPermission(); render(); } });
+  on("#setBg","change",e=>{ settings.bg=e.target.value; saveSettings(); applyTheme(); });
+  on("#setVoice","change",e=>{ settings.voice=e.target.value; saveSettings(); });
+  on("#askPerm","click",async()=>{ await Notification.requestPermission(); render(); });
+  document.querySelectorAll("[data-view-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.viewGo)));
+  document.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{ go("overview"); const t=$("#askText"); t.value=`Ask ${b.dataset.ask}: `; t.focus(); });
+  if (S.view==="vault") renderNotes();
+}
+let voiceLoaded=false;
+function openTalk(){
+  $("#drawer").classList.remove("hidden");
+  $("#voiceLink").href=`https://elevenlabs.io/app/talk-to?agent_id=${VOICE_AGENT}`;
+  if (!voiceLoaded){ voiceLoaded=true;
+    $("#voiceSlot").innerHTML=`<elevenlabs-convai agent-id="${VOICE_AGENT}" variant="expanded"></elevenlabs-convai>`;
+    const s=document.createElement("script"); s.src="https://unpkg.com/@elevenlabs/convai-widget-embed@0.21.2"; s.async=true; s.type="text/javascript";
+    s.onerror=()=>{ $("#voiceSlot").innerHTML=`<p class="muted">Couldn't load the voice widget here. Use the button below.</p>`; };
+    document.body.appendChild(s); }
+}
+$("#nav").addEventListener("click",e=>{ const b=e.target.closest("button[data-view]"); if (b) go(b.dataset.view); });
+$("#nowBtn").onclick=()=>fixNow(""); $("#orb").onclick=openTalk; $("#talkBtn").onclick=openTalk; $("#drawerClose").onclick=()=>$("#drawer").classList.add("hidden");
+$("#refreshBtn").onclick=async()=>{ S._notes=null; await loadAll(); toast("Up to date"); };
+if (location.hash==="#settings") S.view="settings";
+
+
+/* ---------- theme ---------- */
+const THEMES={cyan:["#3ee6ff","#1b8fa3"],gold:["#ffc94a","#a37f1b"],red:["#ff5a6a","#a3283a"],violet:["#b49bff","#5f4aa8"],green:["#4ef0a6","#1b8f5e"]};
+function applyTheme(){ const t=THEMES[settings.accent]||THEMES.cyan; const r=document.documentElement.style; r.setProperty("--cyan",t[0]); r.setProperty("--cyan-dim",t[1]);
+  document.body.classList.remove("bg-grid","bg-stars","bg-plain"); document.body.classList.add("bg-"+(settings.bg||"grid")); }
+const on1=(k,d=true)=>settings[k]===undefined?d:settings[k];
+
+/* ---------- sound (synthesized, no files) ---------- */
+const SFX={ ctx:null,
+  ac(){ if(!this.ctx){ try{ this.ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch{ return null; } } if(this.ctx.state==="suspended") this.ctx.resume(); return this.ctx; },
+  tone(freq,dur,type="sine",vol=.05,when=0,slide=0){ if(!on1("sounds")) return; const c=this.ac(); if(!c) return; const t=c.currentTime+when; const o=c.createOscillator(), g=c.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); if(slide) o.frequency.exponentialRampToValueAtTime(freq*slide,t+dur); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+dur); o.connect(g).connect(c.destination); o.start(t); o.stop(t+dur+.02); },
+  click(){ this.tone(1800,.04,"sine",.025); },
+  alert(){ this.tone(880,.18,"sine",.05); this.tone(1320,.25,"sine",.04,.12); },
+  boot(){ this.tone(110,1.2,"sawtooth",.025,0,4); this.tone(440,.3,"sine",.04,.9); this.tone(660,.5,"sine",.04,1.05); }
+};
+document.addEventListener("click",e=>{ if (e.target.closest("button,a.btn,.seg")) SFX.click(); },true);
+
+/* ---------- team status + reactor ---------- */
+function statusColor(d){ return d==="ok"?"var(--green)":d==="warn"?"var(--amber)":d==="bad"?"var(--red)":"var(--dim)"; }
+function teamStatus(){
+  const hs=hermesStatus(); const today=new Date().toLocaleString("sv-SE",{timeZone:"America/Chicago"}).slice(0,10);
+  const list=claudeProfiles().map(p=>{ const h=healthFor(p.name); return {name:p.name, state:h?.state||"no status", dot:stateDot(h?.state)}; });
+  list.push({name:"Hermes", state:hs.text, dot:hs.dot});
+  list.push({name:"Jarvis HQ", state:S.briefDate===today?"Rounds running":"No brief today", dot:S.briefDate===today?"ok":"warn"});
+  return list;
+}
+function arc(cx,cy,r,a0,a1){ const p=a=>[cx+r*Math.cos((a-90)*Math.PI/180), cy+r*Math.sin((a-90)*Math.PI/180)]; const [x0,y0]=p(a0),[x1,y1]=p(a1); return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${a1-a0>180?1:0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; }
+function reactor(){
+  const team=teamStatus(), n=team.length, gap=8, step=360/n, needs=briefParts().needs.length;
+  const segs=team.map((a,i)=>`<path class="seg" d="${arc(140,140,122,i*step+gap/2,(i+1)*step-gap/2)}" stroke="${statusColor(a.dot)}" stroke-width="8" stroke-linecap="round" fill="none" data-tip="${esc(a.name)}: ${esc(a.state)}" data-view-go="agents"><title>${esc(a.name)}: ${esc(a.state)}</title></path>`).join("");
+  return `<div class="reactor" aria-label="Team status ring"><svg viewBox="0 0 280 280">
+    <circle cx="140" cy="140" r="136" fill="none" stroke="var(--line)" stroke-width="1"/>
+    ${segs}
+    <g class="spinA"><circle cx="140" cy="140" r="104" fill="none" stroke="var(--cyan)" stroke-opacity=".5" stroke-width="2" stroke-dasharray="2 10"/></g>
+    <g class="spinB"><circle cx="140" cy="140" r="92" fill="none" stroke="var(--cyan)" stroke-opacity=".35" stroke-width="10" stroke-dasharray="40 24"/></g>
+    <circle cx="140" cy="140" r="74" fill="var(--bg2)" stroke="var(--cyan)" stroke-opacity=".6" stroke-width="1.5"/>
+    <circle class="core" cx="140" cy="140" r="60" fill="none" stroke="var(--cyan)" stroke-width="3"/>
+  </svg><div class="center"><div><div class="big">${needs}</div><div class="lbl">NEEDS YOU</div></div></div></div>`;
+}
+
+/* ---------- tooltip ---------- */
+document.addEventListener("mouseover",e=>{ const el=e.target.closest("[data-tip]"); const t=$("#tip"); if(!el){ t.classList.remove("on"); return; } t.textContent=el.dataset.tip; t.classList.add("on"); });
+document.addEventListener("mousemove",e=>{ const t=$("#tip"); if(!t.classList.contains("on")) return; t.style.left=Math.min(e.clientX+14, innerWidth-t.offsetWidth-8)+"px"; t.style.top=(e.clientY+14)+"px"; });
+
+/* ---------- voice greeting (built-in Windows voices, free) ---------- */
+function plain(html){ const d=document.createElement("div"); d.innerHTML=html; return d.textContent.replace(/\s+/g," ").trim(); }
+function pickVoice(){ const vs=speechSynthesis.getVoices(); if(settings.voice){ const v=vs.find(v=>v.name===settings.voice); if(v) return v; }
+  return vs.find(v=>/en-GB/i.test(v.lang)&&/ryan|george|thomas|daniel|brian|male/i.test(v.name)) || vs.find(v=>/en-GB/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang)) || null; }
+function speak(text){ if(!("speechSynthesis" in window)) return toast("This browser can't speak"); speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); const v=pickVoice(); if(v){ u.voice=v; u.lang=v.lang; } u.rate=1.02; u.pitch=.95; speechSynthesis.speak(u); }
+function greetingText(){ const b=briefParts(); const n=b.needs.length; const hs=hermesStatus();
+  let t=`Good ${partOfDay()}, Leotus. `;
+  t+= n ? `You have ${n} ${n===1?"thing":"things"} that need you. First: ${plain(mdInline(b.needs[0].text)).slice(0,220)}. ` : "Nothing needs you right now. ";
+  t+= `Hermes is ${hs.dot==="ok"?"online":"offline"}.`; return t; }
+function briefMe(){ speak(greetingText()); }
+
+/* ---------- boot sequence ---------- */
+const todayCT=()=>new Date().toLocaleString("sv-SE",{timeZone:"America/Chicago"}).slice(0,10);
+function greetingDue(){ let last=""; try{ last=localStorage.getItem("jarvis.lastGreet")||""; }catch{} return on1("greeting") && last!==todayCT(); }
+async function runBoot(){
+  const el=$("#boot"); if(!on1("bootAnim")){ if(greetingDue()) showEngage(true); return; }
+  el.classList.remove("hidden","out"); const lines=$("#bootLines"), bar=$("#bootBar");
+  const fast=matchMedia("(prefers-reduced-motion: reduce)").matches; const wait=ms=>new Promise(r=>setTimeout(r,fast?0:ms));
+  const items=[["JARVIS · systems check",""],["Vault linked","ok"],[S.briefDate?`Brief loaded (${S.briefDate})`:"No brief yet", S.briefDate?"ok":"warn"]].concat(teamStatus().map(a=>[`${a.name.padEnd(18,".")} ${a.state}`, a.dot||"warn"])).concat([[`Needs you: ${briefParts().needs.length}`, briefParts().needs.length?"warn":"ok"]]);
+  lines.innerHTML=""; let skip=false; el.onclick=e=>{ if(!e.target.closest("button")) skip=true; };
+  for(let i=0;i<items.length;i++){ const [txt,cls]=items[i]; const d=document.createElement("div"); d.innerHTML=`<span class="${cls}">${cls==="ok"?"✓":cls==="bad"?"✗":cls==="warn"?"!":"›"}</span> ${esc(txt)}`; lines.appendChild(d); bar.style.width=((i+1)/items.length*100)+"%"; if(!skip) await wait(i===0?400:230); }
+  if (greetingDue()) showEngage(false); else { await wait(500); el.classList.add("out"); setTimeout(()=>el.classList.add("hidden"),500); }
+}
+function showEngage(noAnim){ const el=$("#boot"); if(noAnim){ el.classList.remove("hidden","out"); $("#bootLines").innerHTML=`<div style="text-align:center">Ready when you are.</div>`; $("#bootBar").style.width="100%"; }
+  $("#bootGo").classList.remove("hidden");
+  const close=()=>{ el.classList.add("out"); setTimeout(()=>{ el.classList.add("hidden"); $("#bootGo").classList.add("hidden"); },500); try{ localStorage.setItem("jarvis.lastGreet",todayCT()); }catch{} };
+  $("#bootEngage").onclick=()=>{ SFX.boot(); setTimeout(briefMe,900); close(); };
+  $("#bootSkip").onclick=()=>{ SFX.click(); close(); }; }
+
+/* ---------- desktop alerts ---------- */
+function notify(title, body){ SFX.alert(); if(!on1("alerts",false) || !("Notification" in window) || Notification.permission!=="granted") return;
+  try{ const n=new Notification(title,{body, tag:title+body.slice(0,40)}); n.onclick=()=>{ window.focus(); go("overview"); n.close(); }; }catch{} }
+function checkAlerts(){
+  const now={ needs:briefParts().needs.map(n=>plain(mdInline(n.text)).slice(0,80)), hermes:hermesStatus().dot, done:S.tasks.filter(t=>(t.status||"").toLowerCase()==="done").map(t=>t.file) };
+  let prev=null; try{ prev=JSON.parse(localStorage.getItem("jarvis.seen")||"null"); }catch{}
+  try{ localStorage.setItem("jarvis.seen",JSON.stringify(now)); }catch{}
+  if(!prev || vault instanceof DemoVault) return;
+  const fresh=now.needs.filter(x=>!prev.needs.includes(x)); if(fresh.length) notify(`Jarvis: ${fresh.length} new ${fresh.length===1?"thing needs":"things need"} you`, fresh[0]);
+  if(prev.hermes==="ok" && now.hermes==="bad") notify("Jarvis: Hermes went offline","No heartbeat for over 6 hours. Is the PC asleep, or has Obsidian Git stopped?");
+  const done=now.done.filter(f=>!prev.done.includes(f)); for(const f of done){ const t=S.tasks.find(t=>t.file===f); notify("Jarvis: task finished", t?.title||f); }
+}
+
+/* ---------- command bar ---------- */
+let CMD={items:[],sel:0};
+function cmdItems(q){
+  const out=[]; const ql=q.trim().toLowerCase(); const words=ql.split(/\s+/).filter(Boolean);
+  const match=label=>words.every(w=>label.toLowerCase().includes(w));
+  if(q.trim()){ out.push({label:`Fix it now: “${q.trim()}”`, k:"Jarvis Desk", run:()=>fixNow(q)});
+    out.push({label:`Send to Jarvis for next round: “${q.trim()}”`, k:"inbox", run:()=>addToInbox(q)});
+    out.push({label:`New task for Hermes: “${q.trim()}”`, k:"task", run:()=>quickTask(q)}); }
+  const base=[
+    ...Object.keys(views).map(v=>({label:`Go to ${v[0].toUpperCase()+v.slice(1)}`, k:"view", run:()=>go(v)})),
+    ...claudeProfiles().filter(p=>p.session).map(p=>({label:`Open chat: ${p.name}`, k:"Claude", run:()=>window.open(sessionLink(p.session),"_blank","noopener")})),
+    ...(jarvisHq()?[{label:"Open chat: Jarvis HQ", k:"rounds", run:()=>window.open(sessionLink(jarvisHq()),"_blank","noopener")}]:[]),
+    ...(jarvisDesk()?[{label:"Open chat: Jarvis Desk", k:"live", run:()=>fixNow("")}]:[]),
+    {label:"Talk to Jarvis (voice)", k:"voice", run:openTalk},
+    {label:"Brief me out loud", k:"voice", run:briefMe},
+    {label:"Open vault in Obsidian", k:"Obsidian", run:()=>location.href=`obsidian://open?vault=${VAULT_NAME}`},
+    {label:"Open Telegram", k:"Telegram", run:()=>$("#tgBtn").click()},
+    {label:"Refresh from vault", k:"", run:()=>$("#refreshBtn").click()},
+    {label:`Sounds: turn ${on1("sounds")?"off":"on"}`, k:"setting", run:()=>{ settings.sounds=!on1("sounds"); saveSettings(); toast("Sounds "+(settings.sounds?"on":"off")); }},
+    ...Object.keys(THEMES).map(t=>({label:`Theme: ${t}`, k:"setting", run:()=>{ settings.accent=t; saveSettings(); applyTheme(); render(); }})),
+    ...(S._notes||[]).map(n=>({label:`Open note: ${n.replace(/\.md$/,"")}`, k:"note", run:()=>location.href=obsidianLink(n)}))
+  ];
+  const hits=words.length?base.filter(c=>match(c.label)):base;
+  return (hits.length&&words.length ? hits.concat(out) : out.concat(hits)).slice(0,40);
+}
+async function openCmdk(){ if(!vault) return; if(!S._notes) await renderNotes(); $("#cmdk").classList.remove("hidden"); const i=$("#cmdkInput"); i.value=""; drawCmdk(); i.focus(); }
+function closeCmdk(){ $("#cmdk").classList.add("hidden"); }
+function drawCmdk(){ CMD.items=cmdItems($("#cmdkInput").value); CMD.sel=Math.min(CMD.sel,Math.max(0,CMD.items.length-1));
+  $("#cmdkList").innerHTML=CMD.items.map((c,i)=>`<li class="${i===CMD.sel?"sel":""}" data-i="${i}">${esc(c.label)}<span class="k">${esc(c.k)}</span></li>`).join("")||'<li class="empty">No matches</li>';
+  const sel=$("#cmdkList li.sel"); if(sel) sel.scrollIntoView({block:"nearest"}); }
+async function runCmd(i){ const c=CMD.items[i]; if(!c) return; closeCmdk(); SFX.click(); await c.run(); }
+$("#cmdkInput").addEventListener("input",()=>{ CMD.sel=0; drawCmdk(); });
+$("#cmdkInput").addEventListener("keydown",e=>{ if(e.key==="ArrowDown"){ CMD.sel=Math.min(CMD.sel+1,CMD.items.length-1); drawCmdk(); e.preventDefault(); } else if(e.key==="ArrowUp"){ CMD.sel=Math.max(CMD.sel-1,0); drawCmdk(); e.preventDefault(); } else if(e.key==="Enter"){ runCmd(CMD.sel); e.preventDefault(); } else if(e.key==="Escape"){ closeCmdk(); } });
+$("#cmdkList").addEventListener("click",e=>{ const li=e.target.closest("li[data-i]"); if(li) runCmd(+li.dataset.i); });
+$("#cmdk").addEventListener("click",e=>{ if(e.target.id==="cmdk") closeCmdk(); });
+document.addEventListener("keydown",e=>{ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){ e.preventDefault(); $("#cmdk").classList.contains("hidden")?openCmdk():closeCmdk(); } });
+$("#cmdkBtn").onclick=openCmdk;
+async function quickTask(title){ title=title.trim(); if(!title) return; const date=todayCT(); const slug=title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"task";
+  let file=`${date}-${slug}.md`; let i=2; while (await vault.read(`_jarvis/tasks/${file}`)!==null) file=`${date}-${slug}-${i++}.md`;
+  await vault.write(`_jarvis/tasks/${file}`, `---\nassignee: hermes\nstatus: open\npriority: normal\ncreated: ${date}\nfrom: leotus (Jarvis app)\n---\n# ${title}\n\n## Task\n${title}\n\n## Result\n(The agent fills this in.)\n`); toast("Task created for Hermes"); await loadAll(); }
+
+/* ---------- stats ---------- */
+function lastDays(n){ const out=[]; const base=new Date(todayCT()+"T12:00:00"); for(let i=n-1;i>=0;i--){ const d=new Date(base); d.setDate(d.getDate()-i); out.push(d.toISOString().slice(0,10)); } return out; }
+function logEntries(){ return [...S.log.matchAll(/^## \[(\d{4}-\d{2}-\d{2})\][^\n]*$/gm)].map(m=>({date:m[1], who:((m[0].match(/\((Claude|Hermes|Jarvis|Leotus)[^)]*\)\s*$/i)||[])[1]||"Other")})); }
+function vbars(data,{h=170,unit=""}={}){ const W=640,pad=28,bw=(W-pad)/data.length,max=Math.max(1,...data.map(d=>d.value)); const sy=v=>(h-34)*(v/max);
+  const bars=data.map((d,i)=>{ const x=pad+i*bw+2, w=Math.max(2,bw-4), y=h-20-sy(d.value), hh=sy(d.value); const r=Math.min(4,w/2,hh);
+    const path=hh>0?`M${x} ${h-20} V${y+r} Q${x} ${y} ${x+r} ${y} H${x+w-r} Q${x+w} ${y} ${x+w} ${y+r} V${h-20} Z`:"";
+    return `<rect class="hit" x="${x-2}" y="0" width="${bw}" height="${h-20}" fill="transparent" data-tip="${esc(d.label)}: ${d.value}${unit}"/><path class="bar" d="${path}" data-tip="${esc(d.label)}: ${d.value}${unit}"/>${i%2===0||data.length<=8?`<text class="axis" x="${x+w/2}" y="${h-4}" text-anchor="middle">${esc(d.short||d.label)}</text>`:""}`; }).join("");
+  return `<svg viewBox="0 0 ${W} ${h}" role="img"><line class="grid" x1="${pad}" x2="${W}" y1="${h-20}" y2="${h-20}"/><line class="grid" x1="${pad}" x2="${W}" y1="${h-20-sy(max)}" y2="${h-20-sy(max)}" stroke-dasharray="3 4"/><text class="axis" x="0" y="${Math.max(11,h-16-sy(max))}">${max}</text><text class="axis" x="0" y="${h-16}">0</text>${bars}</svg>`; }
+function hbars(data){ const max=Math.max(1,...data.map(d=>d.value)); return `<div style="display:grid;gap:10px">${data.map(d=>`<div data-tip="${esc(d.label)}: ${d.value}"><div class="row" style="justify-content:space-between;font-size:13px"><span>${esc(d.label)}</span><span class="mono">${d.value}</span></div><div style="height:8px;background:var(--line);border-radius:4px;margin-top:4px"><div style="height:100%;width:${d.value/max*100}%;background:var(--cyan);border-radius:4px;opacity:.85"></div></div></div>`).join("")}</div>`; }
+function dataTable(rows,cols){ return `<details class="tbl"><summary>Show as table</summary><div class="md"><table><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table></div></details>`; }
+async function loadBriefHistory(){ if(S._briefHist) return; S._briefHist={}; for(const d of S.briefs.slice(0,14)){ const t=await vault.read(`_jarvis/briefs/${d}.md`); S._briefHist[d]=numbered(sections(t)["Needs Leotus"]||"").length; } render(); }
+
+/* ---------- connect ---------- */
+async function pickVault(){
+  try {
+    const h=await window.showDirectoryPicker({id:"tcc-vault", mode:"readwrite"});
+    const test=new FsVault(h); if (await test.read("_jarvis/agents.md")===null){ $("#connectErr").textContent="That folder has no _jarvis/agents.md. Pick the TCC vault folder."; return; }
+    await DB.set("vault",h); vault=test; $("#connect").classList.add("hidden"); await loadAll();
+  } catch(e){ if (e.name!=="AbortError") $("#connectErr").textContent=e.message; }
+}
+function showGh(on){ $("#ghBox").classList.toggle("hidden",!on); $("#ghToggle").textContent=on?"Use a folder on this computer instead":"Use GitHub instead (for phones)";
+  $("#ghToggle").parentElement.classList.toggle("hidden", on && !window.showDirectoryPicker);
+  $("#connectBtn").classList.toggle("hidden", on || !window.showDirectoryPicker);
+  $("#connectMsg").textContent = on ? "Connect to your vault on GitHub. Obsidian Git keeps it in sync with your computer, so you see the same briefs, tasks and agents." : "Connect your TCC vault so Jarvis can show you briefs, tasks and agents. Pick the folder C:\\Users\\leotu\\Documents\\TCC."; }
+async function connectGh(){
+  const repo=$("#ghRepo").value.trim().replace(/^https?:\/\/github.com\//,"").replace(/\.git$/,""), token=$("#ghToken").value.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !token) { $("#connectErr").textContent="Enter owner/repo and a token."; return; }
+  const test=new GitHubVault(repo, token); $("#connectErr").textContent="Connecting...";
+  try { if (await test.read("_jarvis/agents.md")===null){ $("#connectErr").textContent="Connected, but that repo has no _jarvis/agents.md."; return; } }
+  catch(e){ $("#connectErr").textContent = /401|403/.test(e.message) ? "GitHub refused the token. Check it's for this repo with Contents access." : "Couldn't reach GitHub: "+e.message; return; }
+  try{ localStorage.setItem("jarvis.gh", JSON.stringify({repo, token})); }catch{}
+  $("#connectErr").textContent=""; vault=test; $("#connect").classList.add("hidden"); S._booted=false; await loadAll(); }
+async function boot(){
+  applyTheme(); tick(); setInterval(tick,30000);
+  if("speechSynthesis" in window) speechSynthesis.onvoiceschanged=()=>{ if(S.view==="settings") render(); };
+  try { S.view=localStorage.getItem("jarvis.view")||S.view; } catch {}
+  if (S.view==="settings" && location.hash!=="#settings") S.view="overview";
+  if (new URLSearchParams(location.search).has("demo")) { vault=new DemoVault(DEMO); return loadAll(); }
+  $("#ghToggle").onclick=e=>{ e.preventDefault(); showGh($("#ghBox").classList.contains("hidden")); };
+  $("#ghConnect").onclick=connectGh;
+  let gh=null; try{ gh=JSON.parse(localStorage.getItem("jarvis.gh")||"null"); }catch{}
+  if (gh?.repo && gh?.token){ vault=new GitHubVault(gh.repo, gh.token); try { return await loadAll(); } catch(e){ vault=null; $("#connectErr").textContent="Couldn't reach GitHub: "+e.message; } }
+  if (!window.showDirectoryPicker){ $("#connect").classList.remove("hidden"); showGh(true); return; }
+  $("#connectBtn").onclick=async()=>{ const h=await DB.get("vault"); if (h){ try { if ((await h.requestPermission({mode:"readwrite"}))==="granted"){ vault=new FsVault(h); $("#connect").classList.add("hidden"); return loadAll(); } } catch {} } pickVault(); };
+  const h=await DB.get("vault").catch(()=>null);
+  if (h && (await h.queryPermission({mode:"readwrite"}))==="granted"){ vault=new FsVault(h); return loadAll(); }
+  $("#connect").classList.remove("hidden");
+  if (h) { $("#connectBtn").textContent="Reconnect vault"; $("#connectMsg").textContent="Windows needs you to allow access to the vault again. One click."; }
+}
+setInterval(()=>{ if (vault && document.visibilityState==="visible") loadAll(); }, 120000);
+
+/* ---------- demo data (preview only) ---------- */
+const DEMO = {
+"_jarvis/agents.md": "# Jarvis: agents and profiles\n\n## Claude profiles (cloud, Claude Code sessions)\n| Topic keywords | Profile | Session | Controlled by |\n|---|---|---|---|\n| tiktok, youtube, shorts | **YT/TT** | `session_demo1` | Socials Team Doc |\n| money, business, website | **WiN Me Some Money** (W,N,M,SM) | `session_demo2` | CLAUDE.md |\n| idea check, verdict | **Judge Judy** | `session_demo3` | its own chat |\n\n## Jarvis HQ\nJarvis HQ session: `session_demohq`\nJarvis Desk session: `session_demodesk`\n",
+"_jarvis/briefs/2026-11-06.md": "# Jarvis brief: Fri Nov 6, 2026\n\nLast round: 9:07 AM Central. Two things need you.\n\n## Needs Leotus\n1. **YT/TT, Nov 3 Short:** leave it, or delete and repost the new version?\n2. **16 outreach follow-ups** drafted, approval blank.\n\n## Moving\n- Parker Dewey Short posts today at 12:00 PM.\n\n## Done today\n- Hermes heartbeat received.\n\n## Agent health\n| Agent | State | Notes |\n|---|---|---|\n| YT/TT | Blocked on Leotus | Item 1 |\n| WiN Me Some Money | Idle, done | |\n| Judge Judy | Idle, done | |\n| Hermes | Online | Heartbeat 8:58 AM |\n",
+"_jarvis/briefs/2026-11-05.md": "# Jarvis brief: Thu Nov 5\n\nLast round: 11:07 PM Central.\n\n## Needs Leotus\n1. A\n2. B\n3. C\n4. D\n5. E\n",
+"_jarvis/heartbeats/hermes.md": "last_seen: 2026-11-06 08:58 Central\nopen_tasks: 1\nerrors: none\n",
+"_jarvis/tasks/2026-11-06-list-new-leads.md": "---\nassignee: hermes\nstatus: doing\npriority: high\ncreated: 2026-11-06\n---\n# List today's new leads\n",
+"_jarvis/changelog.md": "# Jarvis changelog\n\n| Date | Agent | Change | Why |\n|---|---|---|---|\n| 2026-11-05 | all | Installed Jarvis | One place to manage everyone |\n",
+"_jarvis/brain/contact-log.md": "# Contact log\n\n| When | Level | Channel | Message |\n|---|---|---|---|\n| 2026-11-06 09:07 | Chat | Telegram | Morning brief |\n",
+"_jarvis/brain/memory.md": "# Jarvis memory\n\n## Leotus\n- Runs The Campus Clutch, San Antonio.\n",
+"_jarvis/inbox.md": "# Jarvis inbox\n\n- [ ] \n",
+"log.md": "# Log\n\n## [2026-10-28] update | Week plan (Hermes)\n## [2026-10-30] update | Outreach drafts (Claude)\n## [2026-11-01] update | Briefing (Hermes)\n## [2026-11-01] update | Social profile (Claude)\n## [2026-11-03] update | Shorts re-render (Claude)\n## [2026-11-04] update | Discord Reel held (Claude)\n## [2026-11-04] update | GroupMe swap (Claude)\n## [2026-11-05] create | Jarvis installed (Claude)\n## [2026-11-05] update | Bonjour Bakery call: Google Meet link added (Claude)\n## [2026-11-05] update | Heartbeat (Hermes)\n",
+"entities/hermes.md": "# Hermes", "entities/bonjour-bakery.md": "# Bonjour", "concepts/instagram-autopilot.md": "# IG"
+};
+boot();
+</script>
+</body>
+</html>
