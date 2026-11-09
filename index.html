@@ -160,6 +160,23 @@ body.bg-plain::before{background:radial-gradient(1200px 600px at 85% -10%, color
 .cmdk li .k{font:11px var(--mono);color:var(--dim);margin-left:auto}
 .cmdk .hint{font:11px var(--mono);color:var(--dim);padding:8px 16px;border-top:1px solid var(--line)}
 kbd{font:11px var(--mono);border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--muted)}
+/* chat */
+.chatwrap{display:flex;flex-direction:column;height:calc(100dvh - 64px - 48px - 110px);min-height:420px}
+.thread{flex:1;overflow:auto;padding:6px 2px 12px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:min(78%,640px);padding:10px 13px;border-radius:16px;line-height:1.45;font-size:14px}
+.msg.me{align-self:flex-end;background:linear-gradient(180deg,var(--cyan),var(--cyan-dim));color:#05080f;border-bottom-right-radius:5px}
+.msg.jv{align-self:flex-start;background:var(--panel-solid);border:1px solid var(--line2);border-bottom-left-radius:5px}
+.msg .when{display:block;font:11px var(--mono);opacity:.65;margin-top:4px}
+.msg.me .when{text-align:right}
+.msg.jv .md :is(p,ul,ol){margin:0 0 6px}.msg.jv .md :last-child{margin-bottom:0}
+.typing{align-self:flex-start;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:blink 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.composer{display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--line);padding-top:12px}
+.composer textarea{min-height:46px;max-height:160px;resize:none}
+.chathint{font-size:12px;color:var(--muted);margin:6px 2px 0}
+@media (max-width:900px){.chatwrap{height:calc(100dvh - 210px - env(safe-area-inset-bottom))}}
 /* agent graph */
 .hive{position:relative;background:#0b0f17;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
 .hive svg{display:block;width:100%;height:min(62vh,560px);touch-action:manipulation}
@@ -289,6 +306,7 @@ details.tbl summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:
 
   <nav class="nav" id="nav">
     <button data-view="overview" class="on">Overview <span class="count hidden" id="needCount"></span></button>
+    <button data-view="chat">Chat <span class="count hidden" id="chatCount"></span></button>
     <button data-view="graph">Graph</button>
     <button data-view="brief">Brief</button>
     <button data-view="tasks">Tasks</button>
@@ -514,6 +532,7 @@ activity(){
   </div>`;
 },
 graph(){ return hiveView(); },
+chat(){ return chatView(); },
 stats(){
   if(!S._briefHist){ loadBriefHistory(); }
   const days=lastDays(14), ents=logEntries(), wk=lastDays(7);
@@ -559,8 +578,8 @@ settings(){
 }
 };
 function askForm(){ return `<div class="field"><textarea id="askText" placeholder="What do you need? e.g. The site's calendar page is broken" style="min-height:70px"></textarea></div>
-  <div class="row"><button class="btn primary" id="askNow" title="Opens Jarvis Desk with your message copied">Fix it now</button><button class="btn" id="askSave">Next round</button></div>
-  <p class="muted" style="font-size:12px;margin:8px 0 0"><b>Fix it now</b> opens a live chat with Jarvis Desk. Your message is copied, so just paste it. <b>Next round</b> drops it in his inbox for later.</p>`; }
+  <div class="row"><button class="btn primary" id="askChat">Send to Jarvis</button><button class="btn" id="askNow" title="Opens Jarvis Desk with your message copied">Fix it now</button></div>
+  <p class="muted" style="font-size:12px;margin:8px 0 0"><b>Send to Jarvis</b> opens your chat with him; he usually replies in under a minute. <b>Fix it now</b> opens a live chat with Jarvis Desk in the Claude app.</p>`; }
 function partOfDay(){ const h=+new Date().toLocaleString("en-US",{timeZone:"America/Chicago",hour:"numeric",hour12:false}); return h<12?"morning":h<17?"afternoon":"evening"; }
 
 /* ---------- actions ---------- */
@@ -596,6 +615,7 @@ function render(){
   const on=(sel,ev,fn)=>{ const el=$(sel); if (el) el.addEventListener(ev,fn); };
   on("#askSave","click",async()=>{ await safely(async()=>{ await addToInbox($("#askText").value); $("#askText").value=""; }); });
   on("#askNow","click",async()=>{ await fixNow($("#askText").value); });
+  on("#askChat","click",async()=>{ const t=$("#askText").value; if(!chatVault()){ if(t.trim()) await safely(()=>addToInbox(t)); go("chat"); return; } go("chat"); if(t.trim()) await chatSend(t); });
   on("#briefPick","change",async e=>{ S.briefDate=e.target.value; S.brief=await vault.read(`_jarvis/briefs/${S.briefDate}.md`); render(); });
   on("#tSave","click",()=>safely(createTask));
   on("#noteSearch","input",e=>renderNotes(e.target.value));
@@ -614,6 +634,7 @@ function render(){
   document.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{ go("overview"); const t=$("#askText"); t.value=`Ask ${b.dataset.ask}: `; t.focus(); });
   if (S.view==="vault") { renderNotes(); vgWire(); } else cancelAnimationFrame(VG.raf);
   if (S.view==="graph") hiveWire(); else cancelAnimationFrame(HIVE.raf);
+  if (S.view==="chat") chatWire();
 }
 let voiceLoaded=false;
 function openTalk(){
@@ -756,6 +777,77 @@ $("#cmdkBtn").onclick=openCmdk;
 async function quickTask(title){ title=title.trim(); if(!title) return; const date=todayCT(); const slug=title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"task";
   let file=`${date}-${slug}.md`; let i=2; while (await vault.read(`_jarvis/tasks/${file}`)!==null) file=`${date}-${slug}-${i++}.md`;
   await vault.write(`_jarvis/tasks/${file}`, `---\nassignee: hermes\nstatus: open\npriority: normal\ncreated: ${date}\nfrom: leotus (Jarvis app)\n---\n# ${title}\n\n## Task\n${title}\n\n## Result\n(The agent fills this in.)\n`); toast("Task created for Hermes"); await loadAll(); }
+
+/* ---------- app chat (messages go through GitHub so Jarvis HQ sees them in seconds) ---------- */
+const CHAT={msgs:{}, order:[], timer:0, waiting:false, lastJarvis:null, err:"", local:new Set()};
+function chatVault(){ if (vault instanceof GitHubVault) return vault; if (vault instanceof DemoVault) return vault;
+  try{ const gh=JSON.parse(localStorage.getItem("jarvis.gh")||"null"); if(gh?.repo&&gh?.token) return CHAT.gv||(CHAT.gv=new GitHubVault(gh.repo,gh.token)); }catch{} return null; }
+function chatStamp(d=new Date()){ return d.toISOString().slice(0,19).replace(/:/g,"-"); }
+function chatWhen(path){ const m=path.match(/(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})/); if(!m) return ""; const d=new Date(`${m[1]}T${m[2]}:${m[3]}:${m[4]}Z`);
+  return d.toLocaleString("en-US",{timeZone:"America/Chicago",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }
+function jarvisAwake(){ const h=+new Date().toLocaleString("en-US",{timeZone:"America/Chicago",hour:"numeric",hour12:false}); return h>=7&&h<23; }
+async function chatPoll(){
+  const v=chatVault(); if(!v) return;
+  try {
+    const files=(await v.list("_jarvis/chat")).filter(f=>f.kind==="file"&&/-(leotus|jarvis)\.md$/.test(f.name)).map(f=>`_jarvis/chat/${f.name}`).sort();
+    const fresh=files.filter(p=>!(p in CHAT.msgs)).slice(-60);
+    await Promise.all(fresh.map(async p=>{ const t=await v.read(p); const {fm,body}=frontmatter(t||""); CHAT.msgs[p]={path:p, from:p.endsWith("-jarvis.md")?"jarvis":"leotus", body, re:(fm.re||"").replace(/[\[\]]/g,"").split(",").map(x=>x.trim()).filter(Boolean)}; }));
+    for (const p of [...CHAT.local]) if (files.includes(p)) CHAT.local.delete(p);
+    CHAT.order=[...files.filter(p=>p in CHAT.msgs), ...CHAT.local].sort().slice(-80);
+    const answered=new Set(CHAT.order.filter(p=>CHAT.msgs[p].from==="jarvis").flatMap(p=>CHAT.msgs[p].re));
+    const lastMine=[...CHAT.order].reverse().find(p=>CHAT.msgs[p].from==="leotus");
+    CHAT.waiting=!!lastMine && !answered.has(lastMine);
+    const lastJ=[...CHAT.order].reverse().find(p=>CHAT.msgs[p].from==="jarvis")||null;
+    if (CHAT.lastJarvis && lastJ && lastJ!==CHAT.lastJarvis && S.view==="chat") SFX.alert();
+    if (lastJ && lastJ!==CHAT.lastJarvis && CHAT.lastJarvis && document.visibilityState!=="visible") notify("Jarvis replied", plain(md(CHAT.msgs[lastJ].body)).slice(0,120));
+    let seen=""; try{ seen=localStorage.getItem("jarvis.chatSeen")||""; }catch{}
+    const unread=CHAT.order.filter(p=>CHAT.msgs[p].from==="jarvis" && p>seen).length;
+    const c=$("#chatCount"); if(c){ c.textContent=unread; c.classList.toggle("hidden", !unread || S.view==="chat"); }
+    CHAT.lastJarvis=lastJ; CHAT.err="";
+  } catch(e){ CHAT.err=e.message; }
+  if (S.view==="chat") chatDraw();
+}
+function chatDraw(){
+  const th=$("#thread"); if(!th) return; const atBottom=th.scrollHeight-th.scrollTop-th.clientHeight<80;
+  th.innerHTML=(CHAT.order.length?"":`<p class="empty" style="text-align:center;margin-top:30px">Say hi to Jarvis. He replies here, usually within a minute between 7 AM and 11 PM.</p>`)+
+    CHAT.order.map(p=>{ const m=CHAT.msgs[p]; return m.from==="jarvis" ? `<div class="msg jv"><div class="md">${md(m.body)}</div><span class="when">Jarvis · ${chatWhen(p)}</span></div>` : `<div class="msg me">${esc(m.body).replace(/\n/g,"<br>")}<span class="when">${chatWhen(p)}</span></div>`; }).join("")+
+    (CHAT.waiting?`<div class="typing"><i></i><i></i><i></i> ${jarvisAwake()?"Jarvis is on it. Usually under a minute.":"Jarvis is off until 7 AM Central. He'll answer at his first round."}</div>`:"")+
+    (CHAT.err?`<p class="mono" style="color:var(--red)">${esc(CHAT.err)}</p>`:"");
+  if (atBottom||CHAT.justSent) th.scrollTop=th.scrollHeight; CHAT.justSent=false;
+  const last=CHAT.order[CHAT.order.length-1]; if(last) try{ localStorage.setItem("jarvis.chatSeen", last); }catch{}
+}
+async function chatSend(text){
+  text=(text||"").trim(); if(!text) return; const v=chatVault(); if(!v) return toast("Connect GitHub first");
+  const path=`_jarvis/chat/${chatStamp()}-leotus.md`;
+  CHAT.msgs[path]={path, from:"leotus", body:text, re:[]}; CHAT.local.add(path); CHAT.order.push(path); CHAT.waiting=true; CHAT.justSent=true; chatDraw();
+  try { await v.write(path, `---\nfrom: leotus\nsent_from: jarvis app\n---\n${text}\n`); SFX.click(); }
+  catch(e){ delete CHAT.msgs[path]; CHAT.local.delete(path); CHAT.order=CHAT.order.filter(p=>p!==path); CHAT.err="Not sent: "+e.message; chatDraw(); return false; }
+  setTimeout(chatPoll,1500); return true;
+}
+function chatView(){
+  if(!chatVault()) return `<h1>Chat with Jarvis</h1><section class="panel" style="max-width:560px">
+    <p style="margin-top:0">Chat goes through GitHub so Jarvis sees it within seconds, even when your PC is off. Connect once on this device:</p>
+    <div class="field"><label for="cgRepo">Vault on GitHub (owner/repo)</label><input id="cgRepo" value="L0tuS5000/tcc-vault" autocapitalize="off"></div>
+    <div class="field"><label for="cgToken">GitHub access token (fine-grained, tcc-vault only, Contents read and write)</label><input id="cgToken" type="password" placeholder="github_pat_..." autocapitalize="off"></div>
+    <button class="btn primary" id="cgSave">Connect chat</button><p class="mono" id="cgErr" style="color:var(--red)"></p></section>`;
+  return `<div class="row" style="justify-content:space-between;margin-bottom:8px"><h1 style="margin:0">Chat with Jarvis</h1><div class="row"><button class="btn small" data-talk>Talk</button><button class="btn small" id="chatDesk" title="Live chat with Jarvis Desk in the Claude app">Fix it now</button></div></div>
+  <div class="chatwrap"><div class="thread" id="thread"></div>
+    <div class="composer"><textarea id="chatText" placeholder="Message Jarvis" rows="1"></textarea><button class="btn primary" id="chatSend">Send</button></div>
+    <p class="chathint">Real Jarvis: he can route to agents, approve proposals and change tasks. Replies usually in under a minute, 7 AM to 11 PM Central.</p></div>`;
+}
+function chatWire(){
+  const cg=$("#cgSave"); if(cg){ cg.onclick=async()=>{ const repo=$("#cgRepo").value.trim(), token=$("#cgToken").value.trim(); const t=new GitHubVault(repo,token);
+      try{ if(await t.read("_jarvis/agents.md")===null) throw new Error("That repo has no _jarvis/agents.md"); localStorage.setItem("jarvis.gh",JSON.stringify({repo,token})); CHAT.gv=t; render(); }
+      catch(e){ $("#cgErr").textContent=/401|403/.test(e.message)?"GitHub refused the token.":e.message; } }; return; }
+  const ta=$("#chatText"); const send=async()=>{ const t=ta.value; ta.value=""; ta.style.height=""; if(await chatSend(t)===false) ta.value=t; };
+  $("#chatSend").onclick=send;
+  ta.onkeydown=e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } };
+  ta.oninput=()=>{ ta.style.height="auto"; ta.style.height=Math.min(160,ta.scrollHeight)+"px"; };
+  $("#chatDesk").onclick=()=>fixNow(ta.value);
+  chatDraw(); chatPoll(); clearInterval(CHAT.timer); CHAT.timer=setInterval(()=>{ if(S.view==="chat"&&document.visibilityState==="visible") chatPoll(); },4000);
+  if (matchMedia("(min-width:900px)").matches) ta.focus();
+}
+setInterval(()=>{ if(vault && S.view!=="chat") chatPoll(); }, 60000);
 
 /* ---------- agent graph ---------- */
 const HS={busy:{c:"var(--green)",l:"Working"},idle:{c:"#4aa8ff",l:"Idle"},wait:{c:"var(--amber)",l:"Waiting on you"},off:{c:"var(--red)",l:"Offline"},unk:{c:"var(--dim)",l:"No status"}};
@@ -1010,6 +1102,8 @@ const DEMO = {
 "_jarvis/changelog.md": "# Jarvis changelog\n\n| Date | Agent | Change | Why |\n|---|---|---|---|\n| 2026-11-05 | all | Installed Jarvis | One place to manage everyone |\n",
 "_jarvis/brain/contact-log.md": "# Contact log\n\n| When | Level | Channel | Message |\n|---|---|---|---|\n| 2026-11-06 09:07 | Chat | Telegram | Morning brief |\n",
 "_jarvis/brain/memory.md": "# Jarvis memory\n\n## Leotus\n- Runs The Campus Clutch, San Antonio.\n",
+"_jarvis/chat/2026-11-09T15-00-00-leotus.md": "---\nfrom: leotus\n---\nAny proposals waiting?\n",
+"_jarvis/chat/2026-11-09T15-00-40-jarvis.md": "---\nfrom: jarvis\nre: [_jarvis/chat/2026-11-09T15-00-00-leotus.md]\n---\nTwo are waiting:\n- **#1** WiN Me Some Money drafts offers for 3 local sponsors.\n- **#2** YT/TT picks 3 Short topics from your best performers.\n\nReply Y 1 or Y 2 to proceed.\n",
 "_jarvis/inbox.md": "# Jarvis inbox\n\n- [ ] \n",
 "log.md": "# Log\n\n## [2026-10-28] update | Week plan (Hermes)\n## [2026-10-30] update | Outreach drafts (Claude)\n## [2026-11-01] update | Briefing (Hermes)\n## [2026-11-01] update | Social profile (Claude)\n## [2026-11-03] update | Shorts re-render (Claude)\n## [2026-11-04] update | Discord Reel held (Claude)\n## [2026-11-04] update | GroupMe swap (Claude)\n## [2026-11-05] create | Jarvis installed (Claude)\n## [2026-11-05] update | Bonjour Bakery call: Google Meet link added (Claude)\n## [2026-11-05] update | Heartbeat (Hermes)\n",
 "entities/hermes.md": "# Hermes", "entities/bonjour-bakery.md": "# Bonjour", "concepts/instagram-autopilot.md": "# IG"
