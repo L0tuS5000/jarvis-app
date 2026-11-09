@@ -179,6 +179,23 @@ kbd{font:11px var(--mono);border:1px solid var(--line2);border-bottom-width:2px;
 .hivestats div{padding:14px;text-align:center} .hivestats b{display:block;font:700 24px var(--mono)} .hivestats span{color:var(--muted);font-size:12px}
 .hivepanel{margin-top:14px}
 @media (prefers-reduced-motion:reduce){.hive .edge.busy{animation:none}}
+/* vault graph */
+.vg{position:relative;background:#0b0f17;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.vg canvas{display:block;width:100%;height:min(66vh,620px);cursor:grab;touch-action:none}
+.vg canvas.dragging{cursor:grabbing}
+.vg .bar{position:absolute;top:12px;left:12px;right:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:none}
+.vg .bar>*{pointer-events:auto}
+.vg .bar input{width:min(260px,60vw);padding:7px 10px;font-size:13px;background:#0e1729e6}
+.vg .leg{display:flex;gap:6px;flex-wrap:wrap}
+.vg .leg button{all:unset;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;border:1px solid var(--line2);background:#0e1729e6}
+.vg .leg button.off{opacity:.35}
+.vg .leg i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.vg .zoom{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px}
+.vg .zoom button{width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:#121a2b;font-size:16px}
+@media (max-width:640px){.vg .bar{position:static;padding:10px 10px 0}.vg .bar input{width:100%}.vg canvas{height:56vh}}
+.vg .loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font:13px var(--mono)}
+.vgpanel .links a{display:inline-block;margin:2px 6px 2px 0;font-size:13px}
+.vgpanel .prev{max-height:220px;overflow:auto;border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:13px}
 /* stats */
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-bottom:16px}
 .tile .v{font:700 32px/1.1 var(--mono)} .tile .l{color:var(--muted);font-size:12px;margin-top:4px}
@@ -482,6 +499,7 @@ agents(){
 vault(){
   const entries=[...S.log.matchAll(/^## \[(\d{4}-\d{2}-\d{2})\]\s*([^|\n]*)\|\s*(.*)$/gm)].slice(-15).reverse();
   return `<div class="row" style="justify-content:space-between;margin-bottom:16px"><h1>Vault</h1><a class="btn primary" href="obsidian://open?vault=${VAULT_NAME}">Open TCC in Obsidian</a></div>
+  ${vgView()}
   <div class="grid g2">
     <section class="panel"><h2>Latest activity (log.md)</h2><ul class="list">${entries.map(e=>`<li><span class="mono">${e[1]}</span><span><span class="tag">${esc(e[2].trim())}</span> ${esc(e[3])}</span></li>`).join("")||'<li class="empty">No log entries</li>'}</ul></section>
     <section class="panel"><h2>Find a note</h2><input id="noteSearch" placeholder="Type to filter notes"><div id="noteList" class="files" style="margin-top:12px"></div></section>
@@ -594,7 +612,7 @@ function render(){
   on("#askPerm","click",async()=>{ await Notification.requestPermission(); render(); });
   document.querySelectorAll("[data-view-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.viewGo)));
   document.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{ go("overview"); const t=$("#askText"); t.value=`Ask ${b.dataset.ask}: `; t.focus(); });
-  if (S.view==="vault") renderNotes();
+  if (S.view==="vault") { renderNotes(); vgWire(); } else cancelAnimationFrame(VG.raf);
   if (S.view==="graph") hiveWire(); else cancelAnimationFrame(HIVE.raf);
 }
 let voiceLoaded=false;
@@ -609,7 +627,7 @@ function openTalk(){
 }
 $("#nav").addEventListener("click",e=>{ const b=e.target.closest("button[data-view]"); if (b) go(b.dataset.view); });
 $("#nowBtn").onclick=()=>fixNow(""); $("#orb").onclick=openTalk; $("#talkBtn").onclick=openTalk; $("#drawerClose").onclick=()=>$("#drawer").classList.add("hidden");
-$("#refreshBtn").onclick=async()=>{ S._notes=null; await loadAll(); toast("Up to date"); };
+$("#refreshBtn").onclick=async()=>{ S._notes=null; VG.nodes=null; await loadAll(); toast("Up to date"); };
 if (location.hash==="#settings") S.view="settings";
 
 
@@ -831,6 +849,103 @@ function hiveWire(){
   wirePanel(); hiveLoop();
 }
 function wirePanel(){ document.querySelectorAll("#hivePanel [data-talk]").forEach(b=>b.onclick=openTalk); document.querySelectorAll("#hivePanel [data-ask]").forEach(b=>b.onclick=()=>{ go("overview"); const t=$("#askText"); t.value=`Ask ${b.dataset.ask}: `; t.focus(); }); }
+
+/* ---------- vault graph (Obsidian-style) ---------- */
+const VG_GROUPS=[["entities","People and businesses","#3987e5"],["concepts","Topics","#d95926"],["comparisons","Comparisons","#199e70"],["queries","Research","#c98500"],["raw","Sources","#d55181"],["_jarvis","Jarvis","#008300"],["other","Vault pages","#8aa0c2"]];
+const VG={nodes:null, links:null, byId:null, cam:{x:0,y:0,k:1}, sel:null, hover:null, q:"", hidden:new Set(), raf:0, alpha:0, loading:false};
+function vgGroup(path){ const top=path.split("/")[0]; return VG_GROUPS.some(g=>g[0]===top)?top:"other"; }
+async function vgListMd(dir, depth=2){ const out=[]; for (const f of await vault.list(dir)) { const p=dir?`${dir}/${f.name}`:f.name;
+    if (f.kind==="file" && f.name.endsWith(".md")) out.push(p); else if (f.kind==="directory" && depth>0 && !f.name.startsWith(".") && !["briefs","heartbeats","tasks","app","hermes-skill","handoffs","brain"].includes(f.name)) out.push(...await vgListMd(p, depth-1)); }
+  return out; }
+async function vgLoad(force=false){
+  if (VG.nodes && !force) return; if (VG.loading) return; VG.loading=true;
+  try {
+    const paths=[...(await vgListMd("",0)), ...(await Promise.all(["entities","concepts","comparisons","queries","raw","_jarvis"].map(d=>vgListMd(d, d==="_jarvis"?1:2)))).flat()];
+    const texts={}; let i=0; const workers=Array.from({length:8},async()=>{ while(i<paths.length){ const p=paths[i++]; texts[p]=(await vault.read(p).catch(()=>""))||""; } }); await Promise.all(workers);
+    const key=p=>p.split("/").pop().replace(/\.md$/i,"").toLowerCase();
+    const byKey={}; const nodes=paths.map(p=>{ const {fm,body}=frontmatter(texts[p]); const n={id:p, key:key(p), title:(fm.title||p.split("/").pop().replace(/\.md$/,"")).replace(/^["']|["']$/g,""), group:vgGroup(p), body, deg:0}; byKey[n.key]=byKey[n.key]||n; return n; });
+    const links=[]; const seen=new Set();
+    for (const n of nodes) for (const m of n.body.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/g)) { const t=byKey[m[1].trim().split("/").pop().toLowerCase()]; if (!t||t===n) continue; const k=[n.id,t.id].sort().join("|"); if (seen.has(k)) continue; seen.add(k); links.push({s:n,t}); n.deg++; t.deg++; }
+    nodes.forEach((n,j)=>{ const a=j*2.399, r=30*Math.sqrt(j+1); n.x=r*Math.cos(a); n.y=r*Math.sin(a); n.vx=0; n.vy=0; n.r=3.5+Math.sqrt(n.deg)*2.2; });
+    VG.ticks=0; VG.userMoved=false;
+    VG.nodes=nodes; VG.links=links; VG.byId=Object.fromEntries(nodes.map(n=>[n.id,n])); VG.alpha=1; VG.cam={x:0,y:0,k:0.9};
+  } finally { VG.loading=false; }
+}
+function vgVisible(n){ return !VG.hidden.has(n.group); }
+function vgStep(){ const N=VG.nodes.filter(vgVisible), L=VG.links.filter(l=>vgVisible(l.s)&&vgVisible(l.t)), a=VG.alpha;
+  for (let i=0;i<N.length;i++) for (let j=i+1;j<N.length;j++) { const p=N[i], q=N[j]; let dx=q.x-p.x, dy=q.y-p.y, d2=dx*dx+dy*dy||0.01; if (d2>250000) continue; const f=2400*a/d2, d=Math.sqrt(d2); dx/=d; dy/=d; p.vx-=dx*f; p.vy-=dy*f; q.vx+=dx*f; q.vy+=dy*f; }
+  for (const l of L) { const dx=l.t.x-l.s.x, dy=l.t.y-l.s.y, d=Math.sqrt(dx*dx+dy*dy)||1, f=(d-95)*0.02*a; l.s.vx+=dx/d*f; l.s.vy+=dy/d*f; l.t.vx-=dx/d*f; l.t.vy-=dy/d*f; }
+  for (const n of N) { n.vx-=n.x*0.007*a; n.vy-=n.y*0.007*a; if (n===VG.drag) { n.vx=n.vy=0; continue; } n.vx*=0.82; n.vy*=0.82; n.x+=n.vx; n.y+=n.vy; }
+  VG.alpha=Math.max(0, VG.alpha*0.985 - 0.0005); }
+function vgNeighbors(n){ const s=new Set([n]); for (const l of VG.links){ if (l.s===n) s.add(l.t); if (l.t===n) s.add(l.s); } return s; }
+function vgDraw(){
+  const c=$("#vgCanvas"); if(!c||!VG.nodes) return; const dpr=devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight;
+  if (c.width!==W*dpr||c.height!==H*dpr){ c.width=W*dpr; c.height=H*dpr; }
+  const g=c.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const {x:cx,y:cy,k}=VG.cam; g.translate(W/2+cx,H/2+cy); g.scale(k,k);
+  const focus=VG.hover||VG.byId[VG.sel]; const near=focus?vgNeighbors(focus):null; const q=VG.q.toLowerCase();
+  const col=gr=>(VG_GROUPS.find(x=>x[0]===gr)||VG_GROUPS[6])[2];
+  for (const l of VG.links) { if(!vgVisible(l.s)||!vgVisible(l.t)) continue; const on=near&&near.has(l.s)&&near.has(l.t)&&(l.s===focus||l.t===focus);
+    g.strokeStyle=on?getComputedStyle(document.documentElement).getPropertyValue("--cyan"):"#ffffff"; g.globalAlpha=on?0.9:(near?0.05:0.14); g.lineWidth=(on?1.6:1)/k; g.beginPath(); g.moveTo(l.s.x,l.s.y); g.lineTo(l.t.x,l.t.y); g.stroke(); }
+  g.globalAlpha=1;
+  for (const n of VG.nodes) { if(!vgVisible(n)) continue; const hit=q&&(n.title.toLowerCase().includes(q)||n.id.toLowerCase().includes(q)); const dim=(near&&!near.has(n))||(q&&!hit);
+    g.globalAlpha=dim?0.15:1; g.fillStyle=col(n.group); g.beginPath(); g.arc(n.x,n.y,n.r,0,7); g.fill();
+    if (n.id===VG.sel||hit) { g.strokeStyle="#fff"; g.lineWidth=2/k; g.stroke(); } }
+  g.font=`${12/Math.max(k,0.6)}px Inter, system-ui, sans-serif`; g.textAlign="center";
+  for (const n of VG.nodes) { if(!vgVisible(n)) continue; const big=near&&near.size>12; const show=n===focus||(near&&near.has(n)&&(!big||n.deg>=4||k>1.4))||(!near&&(k>1.5||n.deg>=(innerWidth<640?12:8)))||(q&&n.title.toLowerCase().includes(q)); if(!show) continue;
+    g.globalAlpha=(near&&!near.has(n))?0.15:0.9; g.lineWidth=3/k; g.strokeStyle="#0b0f17"; g.strokeText(n.title,n.x,n.y+n.r+13/Math.max(k,0.6)); g.fillStyle="#e6eefc"; g.fillText(n.title,n.x,n.y+n.r+13/Math.max(k,0.6)); }
+  g.globalAlpha=1;
+}
+function vgFit(){ const c=$("#vgCanvas"); const N=VG.nodes.filter(vgVisible); if(!c||!N.length) return; let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const n of N){ x0=Math.min(x0,n.x); y0=Math.min(y0,n.y); x1=Math.max(x1,n.x); y1=Math.max(y1,n.y); }
+  const pad=60, k=Math.min(2,Math.max(0.2,Math.min((c.clientWidth-pad)/(x1-x0||1),(c.clientHeight-pad-(innerWidth<640?0:70))/(y1-y0||1))));
+  VG.cam={k, x:-(x0+x1)/2*k, y:-(y0+y1)/2*k+(innerWidth<640?0:25)}; }
+function vgLoop(){ cancelAnimationFrame(VG.raf); if(S.view!=="vault"||!$("#vgCanvas")) return;
+  if (VG.alpha>0.002||VG.drag) vgStep();
+  if (!VG.userMoved && (VG.ticks=(VG.ticks||0)+1)%20===0 && VG.ticks<=400) vgFit();
+  vgDraw(); VG.raf=requestAnimationFrame(vgLoop); }
+function vgWorld(e){ const c=$("#vgCanvas"), r=c.getBoundingClientRect(); return {x:(e.clientX-r.left-r.width/2-VG.cam.x)/VG.cam.k, y:(e.clientY-r.top-r.height/2-VG.cam.y)/VG.cam.k}; }
+function vgPick(e){ const p=vgWorld(e); let best=null, bd=Infinity; for (const n of VG.nodes) { if(!vgVisible(n)) continue; const d=Math.hypot(n.x-p.x,n.y-p.y); if (d<n.r+8/VG.cam.k && d<bd){ bd=d; best=n; } } return best; }
+function vgPanel(){ const n=VG.byId?.[VG.sel]; const el=$("#vgPanel"); if(!el) return;
+  if(!n){ el.innerHTML=`<p class="muted" style="margin:0">Tap a note to see its links and a preview. Drag to move around, pinch or scroll to zoom.</p>`; return; }
+  const out=VG.links.filter(l=>l.s===n).map(l=>l.t), inn=VG.links.filter(l=>l.t===n).map(l=>l.s); const lk=a=>a.map(m=>`<a href="#" data-vg="${esc(m.id)}">${esc(m.title)}</a>`).join("")||'<span class="muted">none</span>';
+  const g=VG_GROUPS.find(x=>x[0]===n.group)||VG_GROUPS[6];
+  el.innerHTML=`<div class="row" style="justify-content:space-between"><div class="row"><i class="dot" style="background:${g[2]}"></i><b style="font-size:16px">${esc(n.title)}</b><span class="tag">${esc(g[1])}</span></div><a class="btn small primary" href="${obsidianLink(n.id)}">Open in Obsidian</a></div>
+    <div class="mono" style="margin-top:6px">${esc(n.id)}</div>
+    <div class="links" style="margin-top:8px"><span class="muted">Links to:</span> ${lk(out)}</div><div class="links"><span class="muted">Linked from:</span> ${lk(inn)}</div>
+    <div class="prev md">${md(n.body.slice(0,1400))}</div>`;
+  el.querySelectorAll("[data-vg]").forEach(a=>a.onclick=e=>{ e.preventDefault(); vgSelect(a.dataset.vg,true); }); }
+function vgSelect(id,center){ VG.sel=id; const n=VG.byId[id]; if(center&&n){ VG.cam.x=-n.x*VG.cam.k; VG.cam.y=-n.y*VG.cam.k; VG.userMoved=true; } vgPanel(); }
+function vgView(){
+  const leg=VG_GROUPS.map(([k,l,c])=>`<button data-grp="${k}" class="${VG.hidden.has(k)?"off":""}"><i style="background:${c}"></i>${l}${VG.nodes?` · ${VG.nodes.filter(n=>n.group===k).length}`:""}</button>`).join("");
+  return `<section style="margin-bottom:16px"><div class="vg"><div class="bar"><input id="vgSearch" placeholder="Find a note" value="${esc(VG.q)}"><div class="leg">${leg}</div></div>
+    <canvas id="vgCanvas" aria-label="Graph of vault notes and their links"></canvas>
+    <div class="zoom"><button data-z="1.25" aria-label="Zoom in">+</button><button data-z="0.8" aria-label="Zoom out">−</button><button data-z="0" aria-label="Fit">⤢</button></div>
+    ${VG.nodes?"":'<div class="loading" id="vgLoading">Reading the vault...</div>'}</div>
+    <section class="panel vgpanel" id="vgPanel" style="margin-top:12px"></section></section>`; }
+async function vgWire(){
+  const c=$("#vgCanvas"); if(!c) return; vgPanel();
+  if(!VG.nodes){ await vgLoad(); if(S.view!=="vault") return; render(); return; }
+  let pts=new Map(), moved=0, start=null, pinch=null;
+  c.onpointerdown=e=>{ c.setPointerCapture(e.pointerId); pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved=0; start={x:e.clientX,y:e.clientY};
+    if(pts.size===1){ const n=vgPick(e); VG.drag=n||null; if(n){ VG.alpha=Math.max(VG.alpha,0.3); } c.classList.add("dragging"); } else { VG.drag=null; const [a,b]=[...pts.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y),k:VG.cam.k}; } };
+  c.onpointermove=e=>{ const prev=pts.get(e.pointerId);
+    if(!prev){ const h=vgPick(e); if(h!==VG.hover){ VG.hover=h; c.style.cursor=h?"pointer":"grab"; } return; }
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved+=Math.abs(e.clientX-prev.x)+Math.abs(e.clientY-prev.y);
+    if(pts.size===2&&pinch){ const [a,b]=[...pts.values()]; VG.cam.k=Math.min(4,Math.max(0.2,pinch.k*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d)); VG.userMoved=true; return; }
+    if(VG.drag){ const p=vgWorld(e); VG.drag.x=p.x; VG.drag.y=p.y; VG.alpha=Math.max(VG.alpha,0.2); }
+    else { VG.cam.x+=e.clientX-prev.x; VG.cam.y+=e.clientY-prev.y; VG.userMoved=true; } };
+  const up=e=>{ pts.delete(e.pointerId); c.classList.remove("dragging"); if(pts.size<2) pinch=null;
+    if(moved<6 && start){ const n=vgPick(e); vgSelect(n?n.id:null,false); } VG.drag=null; start=null; };
+  c.onpointerup=up; c.onpointercancel=up; c.onpointerleave=()=>{ if(!pts.size){ VG.hover=null; } };
+  c.onwheel=e=>{ e.preventDefault(); const r=c.getBoundingClientRect(), mx=e.clientX-r.left-r.width/2, my=e.clientY-r.top-r.height/2, f=Math.exp(-e.deltaY*0.0015), k2=Math.min(4,Math.max(0.2,VG.cam.k*f));
+    VG.cam.x=mx-(mx-VG.cam.x)*k2/VG.cam.k; VG.cam.y=my-(my-VG.cam.y)*k2/VG.cam.k; VG.cam.k=k2; VG.userMoved=true; };
+  $("#vgSearch").oninput=e=>{ VG.q=e.target.value; };
+  $("#vgSearch").onkeydown=e=>{ if(e.key==="Enter"){ const q=VG.q.toLowerCase(); const n=VG.nodes.find(n=>vgVisible(n)&&(n.title.toLowerCase().includes(q)||n.id.toLowerCase().includes(q))); if(n) vgSelect(n.id,true); } };
+  document.querySelectorAll(".vg [data-grp]").forEach(b=>b.onclick=()=>{ const k=b.dataset.grp; VG.hidden.has(k)?VG.hidden.delete(k):VG.hidden.add(k); b.classList.toggle("off"); VG.alpha=Math.max(VG.alpha,0.3); });
+  document.querySelectorAll(".vg [data-z]").forEach(b=>b.onclick=()=>{ const z=+b.dataset.z; if(!z){ vgFit(); VG.userMoved=false; } else { VG.cam.k=Math.min(4,Math.max(0.2,VG.cam.k*z)); VG.userMoved=true; } });
+  vgLoop();
+}
 
 /* ---------- stats ---------- */
 function lastDays(n){ const out=[]; const base=new Date(todayCT()+"T12:00:00"); for(let i=n-1;i>=0;i--){ const d=new Date(base); d.setDate(d.getDate()-i); out.push(d.toISOString().slice(0,10)); } return out; }
