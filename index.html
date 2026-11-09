@@ -160,6 +160,25 @@ body.bg-plain::before{background:radial-gradient(1200px 600px at 85% -10%, color
 .cmdk li .k{font:11px var(--mono);color:var(--dim);margin-left:auto}
 .cmdk .hint{font:11px var(--mono);color:var(--dim);padding:8px 16px;border-top:1px solid var(--line)}
 kbd{font:11px var(--mono);border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--muted)}
+/* agent graph */
+.hive{position:relative;background:#0b0f17;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.hive svg{display:block;width:100%;height:min(62vh,560px);touch-action:manipulation}
+@media (max-width:640px){.hive svg{height:min(70vh,620px)}.hive .legend2{font-size:11px;gap:10px;right:60px}}
+.hive .legend2{position:absolute;top:14px;left:16px;display:flex;gap:16px;flex-wrap:wrap;font-size:13px;pointer-events:none}
+.hive .legend2 span{display:flex;align-items:center;gap:7px}
+.hive .pause{position:absolute;top:12px;right:12px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line2);background:#121a2b;display:grid;place-items:center}
+.hive .node{cursor:pointer}
+.hive .node text{font:12px var(--sans);fill:var(--muted);paint-order:stroke;stroke:#0b0f17;stroke-width:4px;stroke-linejoin:round}
+.hive .node.center text{fill:var(--cyan);font-weight:700;letter-spacing:.12em}
+.hive .edge{stroke:#ffffff26;stroke-width:1.2}
+.hive .edge.busy{stroke:var(--green);stroke-width:2;stroke-dasharray:6 6;animation:dash 1s linear infinite}
+.hive .edge.wait{stroke:var(--amber);stroke-width:1.6;stroke-dasharray:3 6;opacity:.8}
+@keyframes dash{to{stroke-dashoffset:-12}}
+.hive.paused .edge.busy{animation-play-state:paused}
+.hivestats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);background:#0d1320}
+.hivestats div{padding:14px;text-align:center} .hivestats b{display:block;font:700 24px var(--mono)} .hivestats span{color:var(--muted);font-size:12px}
+.hivepanel{margin-top:14px}
+@media (prefers-reduced-motion:reduce){.hive .edge.busy{animation:none}}
 /* stats */
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-bottom:16px}
 .tile .v{font:700 32px/1.1 var(--mono)} .tile .l{color:var(--muted);font-size:12px;margin-top:4px}
@@ -253,6 +272,7 @@ details.tbl summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:
 
   <nav class="nav" id="nav">
     <button data-view="overview" class="on">Overview <span class="count hidden" id="needCount"></span></button>
+    <button data-view="graph">Graph</button>
     <button data-view="brief">Brief</button>
     <button data-view="tasks">Tasks</button>
     <button data-view="agents">Agents</button>
@@ -382,7 +402,12 @@ function hermesStatus(){
   const ago = hrs<1 ? `${Math.max(0,Math.round(hrs*60))} min ago` : `${hrs.toFixed(1)} h ago`;
   return {dot: hrs<=6?"ok":"bad", text:`${hrs<=6?"Online":"Offline"} · seen ${ago}`, hrs};
 }
-function healthFor(name){ const h=briefParts().health.find(r=>(r.Agent||"").toLowerCase().startsWith(name.toLowerCase().slice(0,6))); return h ? {state:h.State||"", notes:h.Notes||""} : null; }
+function healthFor(name){
+  const key=name.toLowerCase().slice(0,6);
+  const h=briefParts().health.find(r=>(r.Agent||"").toLowerCase().startsWith(key)); if (h) return {state:h.State||"", notes:h.Notes||""};
+  const raw=sections(S.brief)["Agent health"]||"";
+  for (const line of raw.split(/\r?\n/)) { const m=line.match(/^\s*[-*]\s*\**([^:*]+?)\**\s*:\s*(.+)$/); if (m && m[1].toLowerCase().startsWith(key)) { const [st,...rest]=m[2].split(/\.\s+/); return {state:st.replace(/\.$/,""), notes:rest.join(". ")}; } }
+  return null; }
 
 /* ---------- chrome ---------- */
 function renderChrome(){
@@ -470,6 +495,7 @@ activity(){
     <section class="panel md"><h2>Jarvis memory</h2>${md(S.memory.replace(/^#.*$/m,""))}</section>
   </div>`;
 },
+graph(){ return hiveView(); },
 stats(){
   if(!S._briefHist){ loadBriefHistory(); }
   const days=lastDays(14), ents=logEntries(), wk=lastDays(7);
@@ -569,6 +595,7 @@ function render(){
   document.querySelectorAll("[data-view-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.viewGo)));
   document.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{ go("overview"); const t=$("#askText"); t.value=`Ask ${b.dataset.ask}: `; t.focus(); });
   if (S.view==="vault") renderNotes();
+  if (S.view==="graph") hiveWire(); else cancelAnimationFrame(HIVE.raf);
 }
 let voiceLoaded=false;
 function openTalk(){
@@ -712,6 +739,99 @@ async function quickTask(title){ title=title.trim(); if(!title) return; const da
   let file=`${date}-${slug}.md`; let i=2; while (await vault.read(`_jarvis/tasks/${file}`)!==null) file=`${date}-${slug}-${i++}.md`;
   await vault.write(`_jarvis/tasks/${file}`, `---\nassignee: hermes\nstatus: open\npriority: normal\ncreated: ${date}\nfrom: leotus (Jarvis app)\n---\n# ${title}\n\n## Task\n${title}\n\n## Result\n(The agent fills this in.)\n`); toast("Task created for Hermes"); await loadAll(); }
 
+/* ---------- agent graph ---------- */
+const HS={busy:{c:"var(--green)",l:"Working"},idle:{c:"#4aa8ff",l:"Idle"},wait:{c:"var(--amber)",l:"Waiting on you"},off:{c:"var(--red)",l:"Offline"},unk:{c:"var(--dim)",l:"No status"}};
+function hiveState(text){ const t=(text||"").toLowerCase();
+  if (/offline|error|fail|broken|down/.test(t)) return "off";
+  if (/wait|blocked|needs leotus|on leotus|pending/.test(t)) return "wait";
+  if (/work|active|busy|doing|running|routing|in progress/.test(t)) return "busy";
+  if (/idle|done|ready|online|live/.test(t)) return "idle";
+  return "unk"; }
+function hiveModel(){
+  const open=t=>["open","doing","blocked"].includes((t.status||"open").toLowerCase());
+  const tasksFor=who=>S.tasks.filter(t=>open(t)&&(t.assignee||"").toLowerCase().startsWith(who));
+  const loops=(sections(S.memory)["Open loops"]||"").toLowerCase();
+  const nodes=[];
+  for (const p of claudeProfiles()) { const h=healthFor(p.name); const mention=0;
+    let st=hiveState(h?.state); if (!p.session && st==="unk") st="unk";
+    nodes.push({id:p.name, label:p.name, kind:"Claude", state:st, text:h?`${h.state}${h.notes?". "+h.notes:""}`:"No status in today's brief", load:mention, link:p.session?sessionLink(p.session):null}); }
+  const hs=hermesStatus(); const ht=tasksFor("hermes");
+  nodes.push({id:"Hermes", label:"Hermes", kind:"local PC", state:hs.dot==="ok"?(ht.length?"busy":"idle"):"off", text:hs.text+(ht.length?` · ${ht.length} open task${ht.length>1?"s":""}`:""), load:ht.length, tasks:ht});
+  const desk=jarvisDesk(); const dh=healthFor("Desk");
+  if (desk) nodes.push({id:"Desk", label:"Jarvis Desk", kind:"live chat", state:dh?hiveState(dh.state):"idle", text:dh?.state||"Ready for Fix it now", load:0, link:sessionLink(desk)});
+  const vh=healthFor("Voice"); nodes.push({id:"Voice", label:"Voice Jarvis", kind:"ElevenLabs", state:vh?hiveState(vh.state):"unk", text:vh?.state||"No status", load:0, voice:true});
+  const ct=tasksFor("claude");
+  const center={id:"Jarvis", label:"JARVIS", kind:"HQ", state:"busy", text:`Rounds every 2 hours · ${ct.length} open task${ct.length===1?"":"s"} for Claude`, load:ct.length, link:jarvisHq()?sessionLink(jarvisHq()):null, tasks:ct};
+  const all=S.tasks.filter(t=>t.created && lastDays(7).includes(t.created));
+  return {center, nodes, stats:{dispatched:all.length, done:S.tasks.filter(t=>(t.status||"").toLowerCase()==="done").length, waiting:briefParts().needs.length}};
+}
+let HIVE={raf:0, paused:false, sel:null, t0:performance.now()};
+function hiveView(){
+  const m=hiveModel(); S._hive=m;
+  const legend=Object.entries(HS).filter(([k])=>k!=="unk").map(([k,v])=>`<span><i class="dot" style="background:${v.c};box-shadow:0 0 8px ${v.c}"></i>${v.l}</span>`).join("");
+  return `<h1>Agent graph</h1><p class="sub">Jarvis in the center, his team around him. Green dashed lines mean work is moving. Tap anyone for details.</p>
+  <div class="hive ${HIVE.paused?"paused":""}" id="hive"><div class="legend2"><span><i class="dot" style="background:var(--cyan);box-shadow:0 0 8px var(--cyan)"></i>Jarvis</span>${legend}</div>
+    <button class="pause" id="hivePause" aria-label="${HIVE.paused?"Play":"Pause"}">${HIVE.paused?"▶":"❚❚"}</button>
+    <svg id="hiveSvg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="hivestats"><div><b>${m.stats.dispatched}</b><span>Dispatched, 7 days</span></div><div><b>${m.stats.done}</b><span>Completed</span></div><div><b>${m.stats.waiting}</b><span>Waiting on you</span></div></div>
+  </div><section class="panel hivepanel" id="hivePanel">${hivePanel(HIVE.sel)}</section>`;
+}
+function hivePanel(id){
+  const m=S._hive; const n=!id||id==="Jarvis"?m.center:m.nodes.find(x=>x.id===id); if(!n) return "";
+  const color=n.id==="Jarvis"?"var(--cyan)":HS[n.state].c;
+  const tasks=(n.tasks||[]).map(t=>`<li><span class="tag">${esc(t.status||"open")}</span> ${esc(t.title)}</li>`).join("");
+  return `<div class="row" style="justify-content:space-between"><div class="row"><span class="dot" style="background:${color};box-shadow:0 0 8px ${color}"></span><b style="font-size:16px">${esc(n.label)}</b><span class="tag">${esc(n.kind)}</span>${n.id!=="Jarvis"?`<span class="muted">${HS[n.state].l}</span>`:""}</div>
+    <div class="row">${n.link?`<a class="btn small primary" target="_blank" rel="noopener" href="${n.link}">Open chat</a>`:""}${n.voice?`<button class="btn small primary" data-talk>Talk</button>`:""}${n.id!=="Jarvis"&&n.id!=="Voice"?`<button class="btn small" data-ask="${esc(n.label)}">Ask via Jarvis</button>`:""}</div></div>
+    <p class="muted" style="margin:10px 0 0">${esc(n.text)}</p>${tasks?`<ul class="list" style="margin-top:8px">${tasks}</ul>`:""}`;
+}
+function hiveDims(){ const w=$("#hiveSvg")?.clientWidth||1000; return w<640?{W:600,H:700,sx:1,sy:1.2}:{W:1000,H:600,sx:1.45,sy:1}; }
+function hivePos(t){ const m=S._hive, {W,H,sx,sy}=HIVE.dims, cx=W/2, cy=H/2+10, n=m.nodes.length, R=Math.min(W,H)*0.36;
+  return {cx,cy,pos:m.nodes.map((nd,i)=>{ const a=-Math.PI/2+i*2*Math.PI/n+0.25*Math.sin(i*1.7); const rr=R*(0.82+0.22*((i*37)%10)/10);
+    return {x:cx+rr*sx*Math.cos(a)+8*Math.sin(t*0.6+i), y:cy+rr*sy*Math.sin(a)+8*Math.cos(t*0.5+i*1.3)}; })}; }
+function hiveBuild(){
+  const svg=$("#hiveSvg"); const m=S._hive; HIVE.dims=hiveDims(); svg.setAttribute("viewBox",`0 0 ${HIVE.dims.W} ${HIVE.dims.H}`);
+  const edges=m.nodes.map((nd,i)=>{ const c=nd.state==="busy"?"busy":nd.state==="wait"?"wait":""; return `<line class="edge ${c}" id="he${i}"/>`; }).join("");
+  const packets=m.nodes.map((nd,i)=>nd.state==="busy"?`<circle id="hp${i}" r="4" fill="var(--green)"/>`:"").join("");
+  const nodes=m.nodes.map((nd,i)=>{ const c=HS[nd.state].c; const sel=HIVE.sel===nd.id;
+    return `<g class="node" id="hn${i}" data-node="${esc(nd.id)}">
+      <circle r="30" fill="transparent"/>
+      ${nd.state==="busy"?`<circle id="hr${i}" r="20" fill="none" stroke="${c}" stroke-opacity=".35" stroke-width="2"/>`:""}
+      <circle r="15" fill="#0e1729" stroke="${sel?"#fff":c}" stroke-width="${sel?3:2.5}"/>
+      <circle r="7" fill="${c}" style="filter:drop-shadow(0 0 6px ${c})"/>
+      ${nd.load?`<g transform="translate(12 -12)"><circle r="8" fill="var(--green)"/><text text-anchor="middle" y="4" style="font:700 10px var(--mono);fill:#04120b;stroke:none">${nd.load}</text></g>`:""}
+      <text text-anchor="middle" y="34">${esc(nd.label)}</text></g>`; }).join("");
+  const sel=!HIVE.sel||HIVE.sel==="Jarvis";
+  const center=`<g class="node center" data-node="Jarvis" transform="translate(${HIVE.dims.W/2} ${HIVE.dims.H/2+10})">
+    <circle id="hcHalo" r="44" fill="none" stroke="var(--cyan)" stroke-opacity=".25" stroke-width="6"/>
+    <circle r="34" fill="#0e1729" stroke="${sel&&HIVE.sel?"#fff":"var(--cyan)"}" stroke-width="3" style="filter:drop-shadow(0 0 18px var(--cyan))"/>
+    <circle id="hcRing" r="22" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-dasharray="10 6"/>
+    <circle r="11" fill="var(--cyan)" style="filter:drop-shadow(0 0 8px var(--cyan))"/>
+    ${m.center.load?`<g transform="translate(26 -26)"><circle r="9" fill="var(--green)"/><text text-anchor="middle" y="4" style="font:700 10px var(--mono);fill:#04120b;stroke:none">${m.center.load}</text></g>`:""}
+    <text text-anchor="middle" y="56">JARVIS</text></g>`;
+  svg.innerHTML=edges+packets+nodes+center; hiveDraw();
+}
+function hiveDraw(){
+  const svg=$("#hiveSvg"); if(!svg||!S._hive) return; const m=S._hive;
+  const t=(HIVE.paused?(HIVE.frozen||0):performance.now()-HIVE.t0)/1000; if(!HIVE.paused) HIVE.frozen=performance.now()-HIVE.t0;
+  const {cx,cy,pos}=hivePos(t); const set=(el,o)=>{ if(el) for(const k in o) el.setAttribute(k,o[k]); };
+  m.nodes.forEach((nd,i)=>{ const {x,y}=pos[i];
+    set(svg.querySelector(`#he${i}`),{x1:cx,y1:cy,x2:x.toFixed(1),y2:y.toFixed(1)});
+    set(svg.querySelector(`#hn${i}`),{transform:`translate(${x.toFixed(1)} ${y.toFixed(1)})`});
+    set(svg.querySelector(`#hr${i}`),{r:(20+4*Math.sin(t*3+i)).toFixed(1)});
+    const f=((t*0.35+i*0.23)%1); set(svg.querySelector(`#hp${i}`),{cx:(cx+(x-cx)*f).toFixed(1),cy:(cy+(y-cy)*f).toFixed(1),opacity:(1-Math.abs(f-.5)*1.4).toFixed(2)}); });
+  set(svg.querySelector("#hcHalo"),{r:(44+3*Math.sin(t*2)).toFixed(1)});
+  set(svg.querySelector("#hcRing"),{transform:`rotate(${((t*30)%360).toFixed(1)})`});
+}
+function hiveLoop(){ cancelAnimationFrame(HIVE.raf); if(S.view!=="graph") return; hiveDraw(); if(!HIVE.paused && !matchMedia("(prefers-reduced-motion: reduce)").matches) HIVE.raf=requestAnimationFrame(hiveLoop); }
+function hiveWire(){
+  const svg=$("#hiveSvg"); if(!svg) return;
+  svg.onclick=e=>{ const g=e.target.closest("[data-node]"); if(!g) return; HIVE.sel=g.dataset.node; $("#hivePanel").innerHTML=hivePanel(HIVE.sel); wirePanel(); hiveBuild(); };
+  hiveBuild();
+  $("#hivePause").onclick=()=>{ HIVE.paused=!HIVE.paused; if(!HIVE.paused) HIVE.t0=performance.now()-(HIVE.frozen||0); $("#hive").classList.toggle("paused",HIVE.paused); $("#hivePause").textContent=HIVE.paused?"▶":"❚❚"; hiveLoop(); };
+  wirePanel(); hiveLoop();
+}
+function wirePanel(){ document.querySelectorAll("#hivePanel [data-talk]").forEach(b=>b.onclick=openTalk); document.querySelectorAll("#hivePanel [data-ask]").forEach(b=>b.onclick=()=>{ go("overview"); const t=$("#askText"); t.value=`Ask ${b.dataset.ask}: `; t.focus(); }); }
+
 /* ---------- stats ---------- */
 function lastDays(n){ const out=[]; const base=new Date(todayCT()+"T12:00:00"); for(let i=n-1;i>=0;i--){ const d=new Date(base); d.setDate(d.getDate()-i); out.push(d.toISOString().slice(0,10)); } return out; }
 function logEntries(){ return [...S.log.matchAll(/^## \[(\d{4}-\d{2}-\d{2})\][^\n]*$/gm)].map(m=>({date:m[1], who:((m[0].match(/\((Claude|Hermes|Jarvis|Leotus)[^)]*\)\s*$/i)||[])[1]||"Other")})); }
@@ -749,6 +869,7 @@ async function boot(){
   if("speechSynthesis" in window) speechSynthesis.onvoiceschanged=()=>{ if(S.view==="settings") render(); };
   try { S.view=localStorage.getItem("jarvis.view")||S.view; } catch {}
   if (S.view==="settings" && location.hash!=="#settings") S.view="overview";
+  document.querySelectorAll("#nav button[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===S.view));
   if (new URLSearchParams(location.search).has("demo")) { vault=new DemoVault(DEMO); return loadAll(); }
   $("#ghToggle").onclick=e=>{ e.preventDefault(); showGh($("#ghBox").classList.contains("hidden")); };
   $("#ghConnect").onclick=connectGh;
@@ -762,6 +883,7 @@ async function boot(){
   if (h) { $("#connectBtn").textContent="Reconnect vault"; $("#connectMsg").textContent="Windows needs you to allow access to the vault again. One click."; }
 }
 setInterval(()=>{ if (vault && document.visibilityState==="visible") loadAll(); }, 120000);
+addEventListener("resize",()=>{ if(S.view==="graph" && $("#hiveSvg")) hiveBuild(); });
 
 /* ---------- demo data (preview only) ---------- */
 const DEMO = {
