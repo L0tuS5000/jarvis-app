@@ -404,6 +404,8 @@ async function loadAll(){
     vault.list("_jarvis/briefs"), vault.read("_jarvis/agents.md"), vault.read("_jarvis/heartbeats/hermes.md"),
     vault.read("_jarvis/changelog.md"), vault.read("_jarvis/brain/contact-log.md"), vault.read("log.md"),
     vault.read("_jarvis/brain/memory.md"), vault.list("_jarvis/tasks")]);
+  S.proposals=(await vault.read("_jarvis/proposals.md").catch(()=>"")) || "";
+  { const pend=new Set(pendingProposals().map(p=>p.n)); const a=answered(); let ch=false; for (const k of Object.keys(a)) if(!pend.has(k)){ delete a[k]; ch=true; } if(ch) try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
   S.briefs = briefList.filter(f=>/^\d{4}-\d{2}-\d{2}\.md$/.test(f.name)).map(f=>f.name.slice(0,10)).sort().reverse();
   if (!S.briefDate || !S.briefs.includes(S.briefDate)) S.briefDate = S.briefs[0] || null;
   S.brief = S.briefDate ? await vault.read(`_jarvis/briefs/${S.briefDate}.md`) : null;
@@ -466,6 +468,7 @@ overview(){
     <div><h1>Good ${partOfDay()}, Leotus.</h1><p class="sub" style="margin-bottom:14px">${b.top?mdInline(b.top.split("\n").filter(l=>l.trim()&&!l.startsWith("#"))[0]||""):"No brief yet today. Jarvis writes one every round."}</p>
       <div class="legend">${teamStatus().map(a=>`<div class="it"><span class="sw" style="background:${statusColor(a.dot)}"></span><b style="font-weight:600">${esc(a.name)}</b><span class="muted">${esc(a.state)}</span></div>`).join("")}</div>
       <div class="row" style="margin-top:14px"><button class="btn small" data-brief-me>Brief me out loud</button><button class="btn small" data-cmdk>Command bar <kbd>Ctrl K</kbd></button></div></div></div>
+  <div style="margin-bottom:16px">${proposalCard()}</div>
   <div class="grid g2">
     <section class="panel glow"><h2>Needs you · ${b.needs.length}</h2>${needs}</section>
     <div class="grid" style="align-content:start">
@@ -577,6 +580,23 @@ settings(){
   </section></div>`;
 }
 };
+function pendingProposals(){ const out=[]; for (const line of (S.proposals||"").split(/\r?\n/)) { const c=line.trim().replace(/^\||\|$/g,"").split("|").map(x=>x.trim());
+    if (c.length>=6 && /^\d+$/.test(c[0]) && c[5].toLowerCase()==="pending") out.push({n:c[0], goal:c[2], text:c[3], bee:c[4]}); } return out; }
+function answered(){ try{ return JSON.parse(localStorage.getItem("jarvis.answered")||"{}"); }catch{ return {}; } }
+function proposalCard(compact=false){
+  const items=pendingProposals(); if(!items.length) return compact?"":`<section class="panel"><h2>Waiting for your OK</h2><p class="empty">No proposals waiting. Jarvis adds new ones on his rounds.</p></section>`;
+  const a=answered(); const goals={"1":"Money","2":"Followers","3":"Automation"};
+  const rows=items.map(p=>{ const done=a[p.n]; return `<div class="need" data-prop="${p.n}"><div class="n">#${esc(p.n)}</div><div class="t"><div>${mdInline(p.text)}</div>
+      <div class="row" style="margin-top:8px;gap:8px"><span class="tag">${esc(goals[p.goal]||"Goal "+p.goal)}</span><span class="tag">${esc(p.bee)}</span><span style="flex:1"></span>
+      ${done?`<span class="muted" style="font-size:12px">${done==="Y"?"Approved":"Skipped"}. Sent to Jarvis.</span>`:`<button class="btn small primary" data-yn="Y ${p.n}">Approve</button><button class="btn small" data-yn="N ${p.n}">Skip</button>`}</div></div></div>`; }).join("");
+  return `<section class="panel glow" style="${compact?"margin-bottom:10px":""}"><h2>Waiting for your OK · ${items.length}</h2>${rows}</section>`;
+}
+async function answerProposal(code){
+  const [yn,n]=code.split(" "); const a=answered(); a[n]=yn; try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{}
+  const ok = chatVault() ? await chatSend(code) : await safely(()=>addToInbox(code));
+  if (ok===false){ delete a[n]; try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
+  toast(yn==="Y"?`Approved #${n}. Jarvis will dispatch it.`:`Skipped #${n}.`); if(S.view!=="chat") render();
+}
 function askForm(){ return `<div class="field"><textarea id="askText" placeholder="What do you need? e.g. The site's calendar page is broken" style="min-height:70px"></textarea></div>
   <div class="row"><button class="btn primary" id="askChat">Send to Jarvis</button><button class="btn" id="askNow" title="Opens Jarvis Desk with your message copied">Fix it now</button></div>
   <p class="muted" style="font-size:12px;margin:8px 0 0"><b>Send to Jarvis</b> opens your chat with him; he usually replies in under a minute. <b>Fix it now</b> opens a live chat with Jarvis Desk in the Claude app.</p>`; }
@@ -623,6 +643,7 @@ function render(){
   on("#reconnect","click",()=>{ try{ localStorage.removeItem("jarvis.gh"); }catch{} vault=null; $("#connect").classList.remove("hidden"); showGh(!window.showDirectoryPicker); });
   document.querySelectorAll("[data-talk]").forEach(b=>b.onclick=openTalk);
   document.querySelectorAll("[data-brief-me]").forEach(b=>b.onclick=briefMe);
+  document.querySelectorAll("[data-yn]").forEach(b=>b.onclick=()=>{ b.disabled=true; answerProposal(b.dataset.yn); });
   document.querySelectorAll("[data-cmdk]").forEach(b=>b.onclick=openCmdk);
   document.querySelectorAll("[data-accent]").forEach(b=>b.onclick=()=>{ settings.accent=b.dataset.accent; saveSettings(); applyTheme(); render(); });
   document.querySelectorAll("[data-set]").forEach(b=>b.onchange=async()=>{ settings[b.dataset.set]=b.checked; saveSettings();
@@ -831,7 +852,7 @@ function chatView(){
     <div class="field"><label for="cgToken">GitHub access token (fine-grained, tcc-vault only, Contents read and write)</label><input id="cgToken" type="password" placeholder="github_pat_..." autocapitalize="off"></div>
     <button class="btn primary" id="cgSave">Connect chat</button><p class="mono" id="cgErr" style="color:var(--red)"></p></section>`;
   return `<div class="row" style="justify-content:space-between;margin-bottom:8px"><h1 style="margin:0">Chat with Jarvis</h1><div class="row"><button class="btn small" data-talk>Talk</button><button class="btn small" id="chatDesk" title="Live chat with Jarvis Desk in the Claude app">Fix it now</button></div></div>
-  <div class="chatwrap"><div class="thread" id="thread"></div>
+  <div class="chatwrap">${proposalCard(true)}<div class="thread" id="thread"></div>
     <div class="composer"><textarea id="chatText" placeholder="Message Jarvis" rows="1"></textarea><button class="btn primary" id="chatSend">Send</button></div>
     <p class="chathint">Real Jarvis: he can route to agents, approve proposals and change tasks. Replies usually in under a minute, 7 AM to 11 PM Central.</p></div>`;
 }
@@ -1104,6 +1125,7 @@ const DEMO = {
 "_jarvis/brain/memory.md": "# Jarvis memory\n\n## Leotus\n- Runs The Campus Clutch, San Antonio.\n",
 "_jarvis/chat/2026-11-09T15-00-00-leotus.md": "---\nfrom: leotus\n---\nAny proposals waiting?\n",
 "_jarvis/chat/2026-11-09T15-00-40-jarvis.md": "---\nfrom: jarvis\nre: [_jarvis/chat/2026-11-09T15-00-00-leotus.md]\n---\nTwo are waiting:\n- **#1** WiN Me Some Money drafts offers for 3 local sponsors.\n- **#2** YT/TT picks 3 Short topics from your best performers.\n\nReply Y 1 or Y 2 to proceed.\n",
+"_jarvis/proposals.md": "# Proposals\n\n| # | Date | Goal | Proposal | Bee | Status | Leotus's reply |\n|---|---|---|---|---|---|---|\n| 1 | 2026-11-08 | 1 | WiN Me Some Money: list 3 local sponsor targets and draft a one-page offer for each. | WiN Me Some Money | pending | |\n| 2 | 2026-11-08 | 2 | YT/TT: review the last 2 weeks of Shorts and propose 3 next topics. | YT/TT | pending | |\n",
 "_jarvis/inbox.md": "# Jarvis inbox\n\n- [ ] \n",
 "log.md": "# Log\n\n## [2026-10-28] update | Week plan (Hermes)\n## [2026-10-30] update | Outreach drafts (Claude)\n## [2026-11-01] update | Briefing (Hermes)\n## [2026-11-01] update | Social profile (Claude)\n## [2026-11-03] update | Shorts re-render (Claude)\n## [2026-11-04] update | Discord Reel held (Claude)\n## [2026-11-04] update | GroupMe swap (Claude)\n## [2026-11-05] create | Jarvis installed (Claude)\n## [2026-11-05] update | Bonjour Bakery call: Google Meet link added (Claude)\n## [2026-11-05] update | Heartbeat (Hermes)\n",
 "entities/hermes.md": "# Hermes", "entities/bonjour-bakery.md": "# Bonjour", "concepts/instagram-autopilot.md": "# IG"
