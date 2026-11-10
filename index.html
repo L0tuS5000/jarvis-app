@@ -326,9 +326,7 @@ details.tbl summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:
   <div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Talk to Jarvis</h2><button class="btn small" id="drawerClose">Close</button></div>
   <p class="muted" style="margin-top:0">Tap the voice button at the bottom-right of the window to start talking. Voice Jarvis knows today's brief, and what you tell him gets acted on at the next round.</p>
   <div id="voiceSlot"></div>
-  <div class="row" style="margin-top:12px">
-    <a class="btn small" id="voiceLink" target="_blank" rel="noopener" href="#">Open voice in browser</a>
-  </div>
+  <p class="muted" style="font-size:12px;margin:10px 0 0">For privacy, voice Jarvis only answers from this app's web address (l0tus5000.github.io).</p>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -660,11 +658,10 @@ function render(){
 let voiceLoaded=false;
 function openTalk(){
   $("#drawer").classList.remove("hidden");
-  $("#voiceLink").href=`https://elevenlabs.io/app/talk-to?agent_id=${VOICE_AGENT}`;
   if (!voiceLoaded){ voiceLoaded=true;
     $("#voiceSlot").innerHTML=`<elevenlabs-convai agent-id="${VOICE_AGENT}" variant="expanded"></elevenlabs-convai>`;
     const s=document.createElement("script"); s.src="https://unpkg.com/@elevenlabs/convai-widget-embed@0.21.2"; s.async=true; s.type="text/javascript";
-    s.onerror=()=>{ $("#voiceSlot").innerHTML=`<p class="muted">Couldn't load the voice widget here. Use the button below.</p>`; };
+    s.onerror=()=>{ $("#voiceSlot").innerHTML=`<p class="muted">Couldn't load voice here. Open Jarvis at l0tus5000.github.io/jarvis-app and press Talk.</p>`; };
     document.body.appendChild(s); }
 }
 $("#nav").addEventListener("click",e=>{ const b=e.target.closest("button[data-view]"); if (b) go(b.dataset.view); });
