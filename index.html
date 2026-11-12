@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Jarvis">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <style>
@@ -23,7 +23,7 @@
   --text:#e6eefc; --muted:#8aa0c2; --dim:#5b6f90;
   --cyan:#3ee6ff; --cyan-dim:#1b8fa3; --amber:#ffb547; --red:#ff5d73; --green:#41e29a; --violet:#a98bff;
   --radius:14px; --shadow:0 0 0 1px var(--line), 0 10px 30px -12px #000a;
-  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace; --sans:Inter,system-ui,Segoe UI,sans-serif;
+  --mono:'Geist Mono',ui-monospace,Consolas,monospace; --sans:Geist,system-ui,Segoe UI,sans-serif;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -252,6 +252,123 @@ details.tbl summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:
   h1{font-size:20px}
 }
 @media (prefers-reduced-motion:reduce){.orb,.orb::after{animation:none}}
+
+/* ===== v2 look (Nov 2026) ===== */
+:root{--bg:#06070b;--bg2:#0b0d13;--panel:rgba(255,255,255,.035);--panel-solid:#0f121a;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.13);
+  --text:#f3f5f9;--muted:#9aa3b5;--dim:#5d6678;--violet:#8b7bff;--radius:22px;--shadow:inset 0 1px 0 rgba(255,255,255,.06),0 0 0 1px var(--line),0 30px 60px -40px #000}
+@property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
+@keyframes ang{to{--ang:360deg}}
+@keyframes aurora{0%{transform:translate3d(0,0,0) scale(1)}100%{transform:translate3d(-3%,2%,0) scale(1.08)}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+body{font-size:14.5px;letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
+body::before,body.bg-grid::before,body.bg-stars::before,body.bg-plain::before{inset:-10%;background:
+  radial-gradient(55vw 50vh at 88% -5%, color-mix(in srgb,var(--cyan) 24%,transparent), transparent 70%),
+  radial-gradient(50vw 55vh at -8% 28%, #7c5cff2b, transparent 70%),
+  radial-gradient(60vw 45vh at 62% 112%, #ff5ca81c, transparent 70%);animation:aurora 26s ease-in-out infinite alternate}
+body.bg-grid::after,body.bg-stars::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0}
+body.bg-grid::after{background:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.5px) 0 0/26px 26px;mask-image:radial-gradient(ellipse at 50% 30%,#000 30%,transparent 80%)}
+body.bg-stars::after{background:radial-gradient(1px 1px at 20% 30%,#fff9 50%,transparent 51%) 0 0/180px 180px,radial-gradient(1px 1px at 70% 80%,#fff7 50%,transparent 51%) 0 0/240px 240px,radial-gradient(1.5px 1.5px at 40% 60%,#fff6 50%,transparent 51%) 0 0/310px 310px}
+.app{grid-template-columns:96px 1fr;grid-template-rows:auto 1fr;z-index:1}
+.top{border:none;background:transparent;backdrop-filter:none;padding:16px 24px 8px;gap:10px}
+.brand{font-size:17px;letter-spacing:-.01em;font-weight:600;gap:11px}
+.orb{width:30px;height:30px}
+.chip{border-color:var(--line);background:rgba(255,255,255,.04);font-family:var(--sans);font-size:12px;padding:5px 11px;backdrop-filter:blur(12px)}
+.iconbtn{all:unset;cursor:pointer;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--muted);border:1px solid var(--line);background:rgba(255,255,255,.04);transition:.15s}
+.iconbtn:hover{color:var(--text);border-color:var(--line2);background:rgba(255,255,255,.08)}
+.iconbtn svg,.btn svg{width:17px;height:17px}
+.btn{border-radius:999px;background:rgba(255,255,255,.06);border-color:var(--line2);padding:8px 15px;font-weight:500}
+.btn:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.22)}
+.btn.primary{background:linear-gradient(180deg,color-mix(in srgb,var(--cyan) 92%,#fff),var(--cyan));border-color:transparent;color:#05070b;box-shadow:0 8px 24px -10px var(--cyan)}
+.btn.small{border-radius:999px;padding:5px 12px}
+.nav{margin:6px 0 18px 18px;padding:10px 8px;gap:4px;border:1px solid var(--line);border-radius:28px;background:rgba(255,255,255,.035);backdrop-filter:blur(22px);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);align-items:stretch}
+.nav button{flex-direction:column;gap:5px;padding:11px 4px 9px;font-size:11px;font-weight:500;border-radius:20px;align-items:center;justify-content:center;position:relative;text-align:center;transition:.18s}
+.nav button svg{width:22px;height:22px;display:block}
+.nav button:hover{background:rgba(255,255,255,.05)}
+.nav button.on{background:color-mix(in srgb,var(--cyan) 15%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cyan) 30%,transparent);color:var(--text)}
+.nav button.on svg{color:var(--cyan);filter:drop-shadow(0 0 8px var(--cyan))}
+.nav .count{position:absolute;top:5px;right:14px;margin:0;background:var(--red);color:#fff;font-weight:600;min-width:16px;text-align:center;padding:0 5px}
+.nav .sep,.nav .foot{display:none}
+main{padding:14px 28px 48px}
+main.enter>*{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+main.enter>*:nth-child(2){animation-delay:.05s}main.enter>*:nth-child(3){animation-delay:.1s}main.enter>*:nth-child(4){animation-delay:.15s}
+h1{font-size:30px;letter-spacing:-.025em;font-weight:600}
+h2{font-size:11.5px;letter-spacing:.13em;font-weight:600}
+.sub{font-size:15px}
+.panel{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));backdrop-filter:blur(18px);padding:22px}
+.panel.glow{box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 0 0 1px var(--line),0 40px 90px -50px var(--cyan)}
+.panel.glow::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;background:conic-gradient(from var(--ang),transparent 0 62%,var(--cyan) 82%,var(--violet) 92%,transparent 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:ang 7s linear infinite}
+input,textarea,select{background:rgba(0,0,0,.28);border-color:var(--line2);border-radius:14px}
+.tag{border-radius:999px;padding:2px 9px;font-family:var(--sans);background:rgba(255,255,255,.05);border-color:var(--line)}
+.need .n{border-radius:999px;min-width:34px}
+.col{background:rgba(255,255,255,.03);border-color:var(--line);border-radius:18px}
+.card{background:rgba(255,255,255,.05);border-color:var(--line);border-radius:14px}
+.hive,.vg{background:rgba(6,8,13,.6);backdrop-filter:blur(14px)}
+.hivestats{background:rgba(255,255,255,.03)}
+.msg{border-radius:20px;padding:11px 15px}
+.msg.jv{background:rgba(255,255,255,.06);border-color:var(--line);backdrop-filter:blur(14px)}
+.toast,.drawer,.cmdk .box,.tip{background:rgba(16,19,27,.86);backdrop-filter:blur(24px);border-color:var(--line2)}
+.cmdk .box{border-radius:22px}.drawer{border-radius:22px}.toast{border-radius:999px;padding:10px 18px}
+.boot,.connect{background:radial-gradient(900px 600px at 50% 35%,color-mix(in srgb,var(--cyan) 14%,transparent),transparent),var(--bg)}
+kbd{border-color:var(--line2);border-radius:6px}
+/* bento home */
+.bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.bento>*{min-width:0}
+.t-hero{grid-column:span 8}.t-team{grid-column:span 4;grid-row:span 2;display:flex;flex-direction:column;align-items:center}
+.t-focus{grid-column:span 4}.t-ask{grid-column:span 4}.t-ok{grid-column:span 12}.t-needs{grid-column:span 6}.t-mov,.t-done{grid-column:span 3}
+.t-hero h1{font-size:38px;margin-bottom:6px}
+.t-team .reactor{width:230px;height:230px;margin:4px 0 14px}.t-team .legend{width:100%}
+.meters{display:flex;gap:28px;flex-wrap:wrap;margin-top:20px}
+.meter{display:flex;align-items:center;gap:13px}
+.meter svg{width:62px;height:62px;flex:none}
+.meter b{display:block;font:600 21px/1.1 var(--mono);letter-spacing:-.02em}
+.meter span{font-size:12px;color:var(--muted)}
+.focus li{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line);align-items:flex-start}
+.focus li:first-child{border-top:none;padding-top:2px}
+.focus .k{font:600 12px var(--mono);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--cyan) 18%,transparent);color:var(--text)}
+.seg{display:inline-flex;padding:4px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.seg button{all:unset;cursor:pointer;padding:7px 18px;border-radius:999px;font-size:13px;color:var(--muted);transition:.15s}
+.seg button.on{background:var(--text);color:#0a0c12;font-weight:600}
+.bigstat{font:600 44px/1 var(--mono);letter-spacing:-.03em}
+.track{height:10px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin:14px 0 8px}
+.track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--violet),var(--cyan));min-width:6px}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+.day{border:1px solid var(--line);border-radius:16px;padding:10px;min-height:120px;background:rgba(255,255,255,.025)}
+.day.today{border-color:color-mix(in srgb,var(--cyan) 55%,transparent);background:color-mix(in srgb,var(--cyan) 6%,transparent)}
+.day .dn{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.post{font-size:12px;line-height:1.35;padding:7px 9px;border-radius:11px;background:rgba(255,255,255,.055);margin-top:7px}
+.post .pm{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:11px;margin-bottom:2px}
+.eq{display:grid;gap:10px}
+.eq .it{border:1px solid var(--line);border-radius:16px;padding:14px;background:rgba(255,255,255,.03)}
+.eq .it.done{opacity:.45}
+.eq .cm{margin:8px 0 10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.28);font-size:13.5px}
+.urgent{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none;padding:0 4px;white-space:nowrap}
+.urgent input{width:auto;accent-color:var(--amber)}
+.urgent:has(input:checked){color:var(--amber)}
+.sec{margin:26px 0 12px}
+.steps{padding-left:20px;margin:8px 0 0}.steps li{margin-bottom:7px}
+@media (max-width:1100px){.t-team{order:3}.t-mov,.t-done{order:4}.t-hero,.t-team,.t-focus,.t-ask,.t-needs{grid-column:span 12}.t-mov,.t-done{grid-column:span 6}.t-team{grid-row:auto}}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:100dvh}
+  .top{padding:calc(env(safe-area-inset-top) + 10px) 14px 6px}
+  .nav{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 10px);grid-row:auto;margin:0;flex-direction:row;justify-content:space-around;padding:7px 8px;border-radius:26px;background:rgba(14,16,23,.82);z-index:20;overflow:visible;border-top:1px solid var(--line)}
+  .nav button{flex:1;padding:8px 2px 6px;font-size:10.5px}
+  .nav button.on{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cyan) 30%,transparent)}
+  .nav .count{right:calc(50% - 22px)}
+  main{padding:10px 14px calc(env(safe-area-inset-bottom) + 108px)}
+  h1{font-size:25px}.t-hero h1{font-size:29px}
+  .t-mov,.t-done{grid-column:span 12}
+  .week{grid-template-columns:1fr}.day{min-height:0}
+  .chatwrap{height:calc(100dvh - 268px - env(safe-area-inset-bottom) - env(safe-area-inset-top));min-height:0}
+  .chatwrap>.panel{max-height:30dvh;overflow:auto;flex:none;padding:16px}
+  .chathint,#roundChip{display:none}
+  .meters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .meter{flex-direction:column;align-items:flex-start;gap:8px}.meter svg{width:46px;height:46px}.meter b{font-size:17px}.meter span{font-size:11px}
+  .panel{padding:18px}
+  .toast{bottom:calc(env(safe-area-inset-bottom) + 100px)}
+  .drawer{bottom:calc(env(safe-area-inset-bottom) + 100px)}
+  .bigstat{font-size:36px}
+}
+@media (prefers-reduced-motion:reduce){body::before,.panel.glow::before,main.enter>*{animation:none}}
 </style>
 </head>
 <body>
@@ -291,31 +408,24 @@ details.tbl summary{cursor:pointer;color:var(--muted);font-size:12px;margin-top:
 
 <div class="app" id="app">
   <header class="top">
-    <div class="brand"><button class="orb" id="orb" title="Talk to Jarvis" aria-label="Talk to Jarvis"></button>JARVIS</div>
+    <div class="brand"><button class="orb" id="orb" title="Talk to Jarvis" aria-label="Talk to Jarvis"></button>Jarvis</div>
     <span class="chip" id="hermesChip"><span class="dot"></span>Hermes</span>
     <span class="chip" id="roundChip"><span class="dot"></span>Last round</span>
     <div class="spacer"></div>
     <span class="chip" id="clock"></span>
-    <button class="btn small" id="cmdkBtn" title="Command bar">⌘ <kbd>Ctrl K</kbd></button>
-    <button class="btn small" id="refreshBtn" title="Reload from the vault">Refresh</button>
-    <a class="btn small" id="tgBtn" href="#" target="_blank" rel="noopener">Telegram</a>
-    <a class="btn small" href="obsidian://open?vault=TCC">Open vault</a>
-    <button class="btn small" id="nowBtn" title="Live chat with Jarvis Desk">Fix it now</button>
-    <button class="btn small primary" id="talkBtn">Talk</button>
+    <button class="iconbtn" id="cmdkBtn" title="Search and commands (Ctrl K)" aria-label="Search and commands"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg></button>
+    <button class="iconbtn" id="refreshBtn" title="Refresh from the vault" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.5 4.5L20 16"/><path d="M20 20v-4h-4"/></svg></button>
+    <button class="iconbtn" id="setBtn" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></button>
+    <button class="btn primary" id="talkBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/></svg>Talk</button>
+    <a id="tgBtn" class="hidden" href="#" target="_blank" rel="noopener">Telegram</a><button id="nowBtn" class="hidden">Urgent</button>
   </header>
 
-  <nav class="nav" id="nav">
-    <button data-view="overview" class="on">Overview <span class="count hidden" id="needCount"></span></button>
-    <button data-view="chat">Chat <span class="count hidden" id="chatCount"></span></button>
-    <button data-view="graph">Graph</button>
-    <button data-view="brief">Brief</button>
-    <button data-view="tasks">Tasks</button>
-    <button data-view="agents">Agents</button>
-    <button data-view="vault">Vault</button>
-    <button data-view="stats">Stats</button>
-    <button data-view="activity">Activity</button>
-    <div class="sep"></div>
-    <button data-view="settings">Settings</button>
+  <nav class="nav" id="nav" aria-label="Main">
+    <button data-view="overview" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>Home <span class="count hidden" id="needCount"></span></button>
+    <button data-view="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/></svg>Chat <span class="count hidden" id="chatCount"></span></button>
+    <button data-view="goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>Goals</button>
+    <button data-view="agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.6"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="m10 10.2-3.6-3M14 10.2l3.6-3M10 13.8l-3.6 3M14 13.8l3.6 3"/></svg>Team</button>
+    <button data-view="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h10.5A3.5 3.5 0 0 1 19 8v11.5H8.5A3.5 3.5 0 0 1 5 16V4.5Z"/><path d="M5 16a3.5 3.5 0 0 1 3.5-3.5H19"/></svg>Vault</button>
     <div class="foot" id="foot">Not connected</div>
   </nav>
 
@@ -403,6 +513,7 @@ async function loadAll(){
     vault.read("_jarvis/changelog.md"), vault.read("_jarvis/brain/contact-log.md"), vault.read("log.md"),
     vault.read("_jarvis/brain/memory.md"), vault.list("_jarvis/tasks")]);
   S.proposals=(await vault.read("_jarvis/proposals.md").catch(()=>"")) || "";
+  [S.goals,S.deals,S.calendar,S.engage]=await Promise.all(["goals.md","data/deals.md","data/calendar.md","data/engage.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
   { const pend=new Set(pendingProposals().map(p=>p.n)); const a=answered(); let ch=false; for (const k of Object.keys(a)) if(!pend.has(k)){ delete a[k]; ch=true; } if(ch) try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
   S.briefs = briefList.filter(f=>/^\d{4}-\d{2}-\d{2}\.md$/.test(f.name)).map(f=>f.name.slice(0,10)).sort().reverse();
   if (!S.briefDate || !S.briefs.includes(S.briefDate)) S.briefDate = S.briefs[0] || null;
@@ -423,10 +534,8 @@ function claudeProfiles(){
 function jarvisDesk(){ return (S.agentsMd.match(/Jarvis Desk session[^\n]*?(session_[A-Za-z0-9]+)/)||[])[1] || null; }
 async function copyText(t){ try { await navigator.clipboard.writeText(t); return true; } catch { const a=document.createElement("textarea"); a.value=t; document.body.appendChild(a); a.select(); let ok=false; try{ ok=document.execCommand("copy"); }catch{} a.remove(); return ok; } }
 async function fixNow(text){
-  const id=jarvisDesk(); if (!id) return toast("No Jarvis Desk session in agents.md yet");
-  text=(text||"").trim();
-  if (text){ await copyText(text); toast("Copied. Paste it into Jarvis Desk (Ctrl+V)."); } else toast("Opening Jarvis Desk");
-  window.open(sessionLink(id),"_blank","noopener");
+  go("chat"); const c=$("#chatUrgent"); if(c) c.checked=true; text=(text||"").trim();
+  if (text){ await chatSend(text,true); if(c) c.checked=false; } else { const t=$("#chatText"); if(t) t.focus(); toast("Urgent is on. Type the problem and send."); }
 }
 function jarvisHq(){ return (S.agentsMd.match(/Jarvis HQ[^\n]*?(session_[A-Za-z0-9]+)/)||[])[1] || null; }
 function hermesStatus(){
@@ -458,22 +567,22 @@ function tick(){ $("#clock").textContent = new Date().toLocaleString("en-US",{ti
 /* ---------- views ---------- */
 const views = {
 overview(){
-  const b=briefParts(); const profiles=claudeProfiles(); const hs=hermesStatus();
+  const b=briefParts(), g=goalData(); const sx=sections(S.brief||""); const focus=numbered(sx["Focus today"]||"");
   const needs = b.needs.length ? b.needs.map(n=>`<div class="need"><div class="n">${esc(n.n)}</div><div class="t md">${mdInline(n.text)}</div></div>`).join("") : `<p class="empty">Nothing needs you right now.</p>`;
-  const strip = [...profiles.map(p=>({name:p.name, h:healthFor(p.name), link:p.session&&sessionLink(p.session)})),
-    {name:"Hermes", h:{state:hs.text}, link:null}].map(a=>`<div class="row" style="justify-content:space-between;padding:7px 0;border-top:1px solid var(--line)"><span><span class="dot ${stateDot(a.h?.state)}"></span>&nbsp; ${esc(a.name)}</span><span class="muted" style="font-size:12px;text-align:right">${esc(a.h?.state||"no data")}</span></div>`).join("");
-  return `<div class="hero">${reactor()}
-    <div><h1>Good ${partOfDay()}, Leotus.</h1><p class="sub" style="margin-bottom:14px">${b.top?mdInline(b.top.split("\n").filter(l=>l.trim()&&!l.startsWith("#"))[0]||""):"No brief yet today. Jarvis writes one every round."}</p>
-      <div class="legend">${teamStatus().map(a=>`<div class="it"><span class="sw" style="background:${statusColor(a.dot)}"></span><b style="font-weight:600">${esc(a.name)}</b><span class="muted">${esc(a.state)}</span></div>`).join("")}</div>
-      <div class="row" style="margin-top:14px"><button class="btn small" data-brief-me>Brief me out loud</button><button class="btn small" data-cmdk>Command bar <kbd>Ctrl K</kbd></button></div></div></div>
-  <div style="margin-bottom:16px">${proposalCard()}</div>
-  <div class="grid g2">
-    <section class="panel glow"><h2>Needs you · ${b.needs.length}</h2>${needs}</section>
-    <div class="grid" style="align-content:start">
-      <section class="panel"><h2>Ask Jarvis</h2>${askForm()}</section>
-    </div>
-    <section class="panel"><h2>Moving</h2><div class="md">${b.moving?md(b.moving):'<p class="empty">Nothing listed</p>'}</div></section>
-    <section class="panel"><h2>Done today</h2><div class="md">${b.done?md(b.done):'<p class="empty">Nothing yet</p>'}</div></section>
+  const ring=(pct,label,val)=>{ const c=2*Math.PI*26, f=Math.max(0,Math.min(1,pct)); return `<div class="meter"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="6"/><circle cx="32" cy="32" r="26" fill="none" stroke="var(--cyan)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c*f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 32 32)" style="filter:drop-shadow(0 0 6px var(--cyan))"/></svg><div><b>${val}</b><span>${label}</span></div></div>`; };
+  const top=(b.top||"").split("\n").filter(l=>l.trim()&&!l.startsWith("#"))[0]||"";
+  const pc=proposalCard(true);
+  return `<div class="bento">
+    <section class="panel t-hero"><h1>Good ${partOfDay()}, Leotus.</h1><p class="sub" style="margin:0">${top?mdInline(top).slice(0,260):(S.brief?"Here's where things stand.":"No brief yet today. Jarvis writes one at 7 AM.")}</p>
+      <div class="meters">${ring(g.money/5000,"of $5,000 earned","$"+g.money.toLocaleString())}${ring(g.followers/1000,"of 1,000 followers",g.followers.toLocaleString())}${ring(1-g.days/52,"days left",g.days)}</div>
+      <div class="row" style="margin-top:20px"><button class="btn small" data-brief-me>Brief me out loud</button><button class="btn small" data-view-go="brief">Full brief</button><button class="btn small" data-view-go="stats">Stats</button><button class="btn small" data-view-go="activity">Activity</button></div></section>
+    <section class="panel t-team"><h2 style="align-self:flex-start">Team</h2>${reactor()}<div class="legend">${teamStatus().map(a=>`<div class="it"><span class="sw" style="background:${statusColor(a.dot)}"></span><b style="font-weight:600">${esc(a.name)}</b><span class="muted" style="margin-left:auto;text-align:right;font-size:12px">${esc(a.state).slice(0,40)}</span></div>`).join("")}</div></section>
+    <section class="panel t-focus"><h2>Focus today</h2>${focus.length?`<ul class="list focus">${focus.slice(0,3).map(f=>`<li><span class="k">${esc(f.n)}</span><span class="md">${mdInline(f.text)}</span></li>`).join("")}</ul>`:'<p class="empty">Jarvis picks your top 3 in the morning plan.</p>'}</section>
+    <section class="panel t-ask"><h2>Ask Jarvis</h2><textarea id="askText" placeholder="What do you need?" style="min-height:74px"></textarea><div class="row" style="margin-top:10px"><button class="btn primary" id="askChat">Send</button><button class="btn" id="askNow" title="Goes to Jarvis Desk right away">Send as urgent</button></div></section>
+    ${pc?`<div class="t-ok">${pc}</div>`:""}
+    <section class="panel t-needs"><h2>Needs you · ${b.needs.length}</h2>${needs}</section>
+    <section class="panel t-mov"><h2>Moving</h2><div class="md">${b.moving?md(b.moving):'<p class="empty">Nothing listed</p>'}</div></section>
+    <section class="panel t-done"><h2>Done today</h2><div class="md">${b.done?md(b.done):'<p class="empty">Nothing yet</p>'}</div></section>
   </div>`;
 },
 brief(){
@@ -497,7 +606,7 @@ tasks(){
     <div class="field"><label for="tBody">What to do, and what done looks like</label><textarea id="tBody"></textarea></div>
     <button class="btn primary" id="tSave">Create task</button></section>`;
 },
-agents(){
+_agents(){
   const hs=hermesStatus(); const hq=jarvisHq();
   const cards=claudeProfiles().map(p=>{ const h=healthFor(p.name); return `<section class="panel agent"><div class="hd"><span class="dot ${stateDot(h?.state)}"></span><span class="name">${esc(p.full)}</span><span class="tag">Claude</span></div>
     <div class="role">${esc(p.keywords)}</div><div class="state">${h?`<b>${esc(h.state)}</b> <span class="muted">${esc(h.notes)}</span>`:'<span class="muted">No status in brief</span>'}</div>
@@ -532,7 +641,9 @@ activity(){
     <section class="panel md"><h2>Jarvis memory</h2>${md(S.memory.replace(/^#.*$/m,""))}</section>
   </div>`;
 },
-graph(){ return hiveView(); },
+graph(){ return views.agents(); },
+agents(){ const strip=h=>h.replace(/^<h1>[\s\S]*?<\/p>/,""); return hiveView().replace("<h1>Agent graph</h1>","<h1>Team</h1>")+`<h2 class="sec">Agents</h2>`+strip(views._agents())+`<h2 class="sec">Tasks</h2>`+strip(views.tasks()); },
+goals(){ return goalsView(); },
 chat(){ return chatView(); },
 stats(){
   if(!S._briefHist){ loadBriefHistory(); }
@@ -571,6 +682,17 @@ settings(){
     ${tog("alerts","Desktop alerts (new things that need you, Hermes offline, tasks finished)",false)}
     <p class="muted" style="font-size:12px;margin:4px 0 0">Windows permission: <b>${perm}</b>${perm==="default"?` · <button class="btn small" id="askPerm">Allow notifications</button>`:perm==="denied"?` · blocked. Allow it in the browser's site settings (the lock icon), then reopen Jarvis`:""}. Alerts work while the Jarvis window is open, even minimized.</p>
   </section>
+  <section class="panel"><h2>Hey Siri, tell Jarvis</h2>
+    <p class="muted" style="margin:0;font-size:13px">A one-time iPhone Shortcut that sends whatever you say into this chat, hands-free. In the Shortcuts app, make a new shortcut named <b>Tell Jarvis</b> with these actions:</p>
+    <ol class="steps muted" style="font-size:13px">
+      <li><b>Dictate Text</b></li>
+      <li><b>Text</b>: four lines, then the dictated text:<br><span class="mono">---<br>from: leotus<br>sent_from: siri<br>---<br>[Dictated Text]</span></li>
+      <li><b>Base64 Encode</b> that text (line breaks: none)</li>
+      <li><b>Adjust Date</b>: add 6 hours to Current Date (5 in summer), then <b>Format Date</b>, custom: <span class="mono">yyyy-MM-dd'T'HH-mm-ss</span></li>
+      <li><b>Get Contents of URL</b>: <span class="mono">https://api.github.com/repos/L0tuS5000/tcc-vault/contents/_jarvis/chat/[Formatted Date]-leotus.md</span><br>Method <b>PUT</b>. Header <span class="mono">Authorization</span> = <span class="mono">Bearer</span> plus your GitHub token. Request body JSON: <span class="mono">message</span> = siri, <span class="mono">content</span> = [Base64 Encoded], <span class="mono">branch</span> = main</li>
+    </ol>
+    <p class="muted" style="font-size:13px;margin-bottom:0">Then say "Hey Siri, Tell Jarvis". His reply shows up in Chat.</p>
+  </section>
   <section class="panel"><h2>Connections</h2>
     <div class="field"><label for="setBot">Jarvis Telegram bot username (for the Telegram button)</label><input id="setBot" placeholder="leotus_jarvis_bot" value="${esc(settings.telegramBot||"")}"></div>
     <div class="row"><button class="btn primary" id="setSave">Save</button>${vault instanceof DemoVault?"":`<button class="btn" id="reconnect">Switch vault</button>`}</div>
@@ -595,6 +717,7 @@ async function answerProposal(code){
   if (ok===false){ delete a[n]; try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
   toast(yn==="Y"?`Approved #${n}. Jarvis will dispatch it.`:`Skipped #${n}.`); if(S.view!=="chat") render();
 }
+function askAgent(name){ go("chat"); const t=$("#chatText"); if(t){ t.value=`Ask ${name}: `; t.focus(); } }
 function askForm(){ return `<div class="field"><textarea id="askText" placeholder="What do you need? e.g. The site's calendar page is broken" style="min-height:70px"></textarea></div>
   <div class="row"><button class="btn primary" id="askChat">Send to Jarvis</button><button class="btn" id="askNow" title="Opens Jarvis Desk with your message copied">Fix it now</button></div>
   <p class="muted" style="font-size:12px;margin:8px 0 0"><b>Send to Jarvis</b> opens your chat with him; he usually replies in under a minute. <b>Fix it now</b> opens a live chat with Jarvis Desk in the Claude app.</p>`; }
@@ -626,7 +749,7 @@ async function renderNotes(filter=""){
 }
 
 /* ---------- render + events ---------- */
-function go(view){ S.view=view; document.querySelectorAll("#nav button[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===view)); render(); try{localStorage.setItem("jarvis.view",view);}catch{} }
+function go(view){ S.view=view; const m=$("#main"); m.classList.add("enter"); clearTimeout(go._t); go._t=setTimeout(()=>m.classList.remove("enter"),700); document.querySelectorAll("#nav button[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===view)); render(); try{localStorage.setItem("jarvis.view",view);}catch{} }
 function render(){
   $("#main").innerHTML = views[S.view]();
   $("#main").scrollTop=0;
@@ -650,9 +773,14 @@ function render(){
   on("#setVoice","change",e=>{ settings.voice=e.target.value; saveSettings(); });
   on("#askPerm","click",async()=>{ await Notification.requestPermission(); render(); });
   document.querySelectorAll("[data-view-go]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.viewGo)));
-  document.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{ go("overview"); const t=$("#askText"); t.value=`Ask ${b.dataset.ask}: `; t.focus(); });
+  document.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>askAgent(b.dataset.ask));
+  document.querySelectorAll("[data-say]").forEach(b=>b.onclick=async()=>{ b.disabled=true; const ok=chatVault()?await chatSend(b.dataset.say):await safely(()=>addToInbox(b.dataset.say)); if(ok!==false) toast("Sent to Jarvis. His answer lands in Chat."); });
+  on("#logCount","click",()=>{ go("chat"); const t=$("#chatText"); if(t){ t.value="My Instagram follower count today is "; t.focus(); } });
+  document.querySelectorAll("[data-seg]").forEach(b=>b.onclick=()=>{ S.goalTab=b.dataset.seg; render(); });
+  document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{ await copyText(b.dataset.copy); toast("Copied"); });
+  document.querySelectorAll("[data-eqdone]").forEach(b=>b.onchange=()=>{ const k="jarvis.eq."+todayCT(); let d=[]; try{d=JSON.parse(localStorage.getItem(k)||"[]");}catch{} b.checked?d.push(b.dataset.eqdone):d=d.filter(x=>x!==b.dataset.eqdone); try{localStorage.setItem(k,JSON.stringify(d));}catch{} b.closest(".it").classList.toggle("done",b.checked); });
   if (S.view==="vault") { renderNotes(); vgWire(); } else cancelAnimationFrame(VG.raf);
-  if (S.view==="graph") hiveWire(); else cancelAnimationFrame(HIVE.raf);
+  if (S.view==="agents") hiveWire(); else cancelAnimationFrame(HIVE.raf);
   if (S.view==="chat") chatWire();
 }
 let voiceLoaded=false;
@@ -665,7 +793,7 @@ function openTalk(){
     document.body.appendChild(s); }
 }
 $("#nav").addEventListener("click",e=>{ const b=e.target.closest("button[data-view]"); if (b) go(b.dataset.view); });
-$("#nowBtn").onclick=()=>fixNow(""); $("#orb").onclick=openTalk; $("#talkBtn").onclick=openTalk; $("#drawerClose").onclick=()=>$("#drawer").classList.add("hidden");
+$("#nowBtn").onclick=()=>fixNow(""); $("#setBtn").onclick=()=>go("settings"); $("#orb").onclick=openTalk; $("#talkBtn").onclick=openTalk; $("#drawerClose").onclick=()=>$("#drawer").classList.add("hidden");
 $("#refreshBtn").onclick=async()=>{ S._notes=null; VG.nodes=null; await loadAll(); toast("Up to date"); };
 if (location.hash==="#settings") S.view="settings";
 
@@ -764,7 +892,7 @@ function cmdItems(q){
     out.push({label:`Send to Jarvis for next round: “${q.trim()}”`, k:"inbox", run:()=>addToInbox(q)});
     out.push({label:`New task for Hermes: “${q.trim()}”`, k:"task", run:()=>quickTask(q)}); }
   const base=[
-    ...Object.keys(views).map(v=>({label:`Go to ${v[0].toUpperCase()+v.slice(1)}`, k:"view", run:()=>go(v)})),
+    ...Object.keys(views).filter(v=>v[0]!=="_"&&v!=="graph").map(v=>({label:`Go to ${({overview:"Home",agents:"Team"})[v]||v[0].toUpperCase()+v.slice(1)}`, k:"view", run:()=>go(v)})),
     ...claudeProfiles().filter(p=>p.session).map(p=>({label:`Open chat: ${p.name}`, k:"Claude", run:()=>window.open(sessionLink(p.session),"_blank","noopener")})),
     ...(jarvisHq()?[{label:"Open chat: Jarvis HQ", k:"rounds", run:()=>window.open(sessionLink(jarvisHq()),"_blank","noopener")}]:[]),
     ...(jarvisDesk()?[{label:"Open chat: Jarvis Desk", k:"live", run:()=>fixNow("")}]:[]),
@@ -829,16 +957,16 @@ function chatDraw(){
   const th=$("#thread"); if(!th) return; const atBottom=th.scrollHeight-th.scrollTop-th.clientHeight<80;
   th.innerHTML=(CHAT.order.length?"":`<p class="empty" style="text-align:center;margin-top:30px">Say hi to Jarvis. He replies here, usually within a minute between 7 AM and 11 PM.</p>`)+
     CHAT.order.map(p=>{ const m=CHAT.msgs[p]; return m.from==="jarvis" ? `<div class="msg jv"><div class="md">${md(m.body)}</div><span class="when">Jarvis · ${chatWhen(p)}</span></div>` : `<div class="msg me">${esc(m.body).replace(/\n/g,"<br>")}<span class="when">${chatWhen(p)}</span></div>`; }).join("")+
-    (CHAT.waiting?`<div class="typing"><i></i><i></i><i></i> ${jarvisAwake()?"Jarvis is on it. Usually under a minute.":"Jarvis is off until 7 AM Central. He'll answer at his first round."}</div>`:"")+
+    (CHAT.waiting?`<div class="typing"><i></i><i></i><i></i> ${jarvisAwake()?(CHAT.urgentWait?"Urgent: Jarvis Desk is picking this up. Usually a couple of minutes.":"Jarvis is on it. Usually under a minute."):"Jarvis is off until 7 AM Central. He'll answer at his first round."}</div>`:"")+
     (CHAT.err?`<p class="mono" style="color:var(--red)">${esc(CHAT.err)}</p>`:"");
   if (atBottom||CHAT.justSent) th.scrollTop=th.scrollHeight; CHAT.justSent=false;
   const last=CHAT.order[CHAT.order.length-1]; if(last) try{ localStorage.setItem("jarvis.chatSeen", last); }catch{}
 }
-async function chatSend(text){
+async function chatSend(text, urgent=false){
   text=(text||"").trim(); if(!text) return; const v=chatVault(); if(!v) return toast("Connect GitHub first");
   const path=`_jarvis/chat/${chatStamp()}-leotus.md`;
-  CHAT.msgs[path]={path, from:"leotus", body:text, re:[]}; CHAT.local.add(path); CHAT.order.push(path); CHAT.waiting=true; CHAT.justSent=true; chatDraw();
-  try { await v.write(path, `---\nfrom: leotus\nsent_from: jarvis app\n---\n${text}\n`); SFX.click(); }
+  CHAT.msgs[path]={path, from:"leotus", body:text, re:[]}; CHAT.local.add(path); CHAT.order.push(path); CHAT.waiting=true; CHAT.justSent=true; CHAT.urgentWait=urgent; chatDraw();
+  try { await v.write(path, `---\nfrom: leotus\nsent_from: jarvis app\n${urgent?"urgent: true\n":""}---\n${text}\n`); SFX.click(); }
   catch(e){ delete CHAT.msgs[path]; CHAT.local.delete(path); CHAT.order=CHAT.order.filter(p=>p!==path); CHAT.err="Not sent: "+e.message; chatDraw(); return false; }
   setTimeout(chatPoll,1500); return true;
 }
@@ -848,24 +976,92 @@ function chatView(){
     <div class="field"><label for="cgRepo">Vault on GitHub (owner/repo)</label><input id="cgRepo" value="L0tuS5000/tcc-vault" autocapitalize="off"></div>
     <div class="field"><label for="cgToken">GitHub access token (fine-grained, tcc-vault only, Contents read and write)</label><input id="cgToken" type="password" placeholder="github_pat_..." autocapitalize="off"></div>
     <button class="btn primary" id="cgSave">Connect chat</button><p class="mono" id="cgErr" style="color:var(--red)"></p></section>`;
-  return `<div class="row" style="justify-content:space-between;margin-bottom:8px"><h1 style="margin:0">Chat with Jarvis</h1><div class="row"><button class="btn small" data-talk>Talk</button><button class="btn small" id="chatDesk" title="Live chat with Jarvis Desk in the Claude app">Fix it now</button></div></div>
+  return `<div class="row" style="justify-content:space-between;margin-bottom:8px"><h1 style="margin:0">Chat</h1><button class="btn small" data-talk>Talk instead</button></div>
   <div class="chatwrap">${proposalCard(true)}<div class="thread" id="thread"></div>
-    <div class="composer"><textarea id="chatText" placeholder="Message Jarvis" rows="1"></textarea><button class="btn primary" id="chatSend">Send</button></div>
-    <p class="chathint">Real Jarvis: he can route to agents, approve proposals and change tasks. Replies usually in under a minute, 7 AM to 11 PM Central.</p></div>`;
+    <div class="composer"><textarea id="chatText" placeholder="Message Jarvis" rows="1"></textarea><label class="urgent" title="Sends this to Jarvis Desk, his strongest model, right away"><input type="checkbox" id="chatUrgent"> Urgent</label><button class="btn primary" id="chatSend">Send</button></div>
+    <p class="chathint">This is the real Jarvis. He answers, sends work to your agents and takes approvals here, usually in under a minute from 7 AM to 11 PM Central. Tick Urgent for problems that can't wait.</p></div>`;
 }
 function chatWire(){
   const cg=$("#cgSave"); if(cg){ cg.onclick=async()=>{ const repo=$("#cgRepo").value.trim(), token=$("#cgToken").value.trim(); const t=new GitHubVault(repo,token);
       try{ if(await t.read("_jarvis/agents.md")===null) throw new Error("That repo has no _jarvis/agents.md"); localStorage.setItem("jarvis.gh",JSON.stringify({repo,token})); CHAT.gv=t; render(); }
       catch(e){ $("#cgErr").textContent=/401|403/.test(e.message)?"GitHub refused the token.":e.message; } }; return; }
-  const ta=$("#chatText"); const send=async()=>{ const t=ta.value; ta.value=""; ta.style.height=""; if(await chatSend(t)===false) ta.value=t; };
+  const ta=$("#chatText"); const send=async()=>{ const t=ta.value, u=$("#chatUrgent").checked; ta.value=""; ta.style.height=""; if(await chatSend(t,u)===false) ta.value=t; else $("#chatUrgent").checked=false; };
   $("#chatSend").onclick=send;
   ta.onkeydown=e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } };
   ta.oninput=()=>{ ta.style.height="auto"; ta.style.height=Math.min(160,ta.scrollHeight)+"px"; };
-  $("#chatDesk").onclick=()=>fixNow(ta.value);
   chatDraw(); chatPoll(); clearInterval(CHAT.timer); CHAT.timer=setInterval(()=>{ if(S.view==="chat"&&document.visibilityState==="visible") chatPoll(); },4000);
   if (matchMedia("(min-width:900px)").matches) ta.focus();
 }
 setInterval(()=>{ if(vault && S.view!=="chat") chatPoll(); }, 60000);
+
+/* ---------- goals: money and audience ---------- */
+function goalData(){
+  const sx=sections(S.goals||""); const key=k=>Object.keys(sx).find(x=>x.startsWith(k));
+  const money=table(sx[key("1.")]||"").reduce((a,r)=>a+(parseFloat((r.Amount||"").replace(/[^0-9.]/g,""))||0),0);
+  const fr=table(sx[key("2.")]||"").map(r=>({date:r.Date, platform:r.Platform||"", n:parseInt((r.Followers||"").replace(/[^0-9]/g,""))||0})).filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.date||""));
+  const days=Math.max(0,Math.ceil((new Date("2026-12-31T23:59:59-06:00")-new Date())/864e5));
+  return {money, followers:fr.length?fr[fr.length-1].n:0, fr, days};
+}
+const updatedLine=t=>((t||"").match(/^Updated:\s*(.+)$/m)||[])[1]||"";
+function dealsBoard(){
+  const rows=table(S.deals||"").filter(r=>r.Business); const stages=[["lead","Lead"],["pitched","Pitched"],["yes","Yes"],["invoiced","Invoiced"],["paid","Paid"]];
+  const amt=r=>parseFloat((r.Amount||"").replace(/[^0-9.]/g,""))||0; const st=r=>(r.Stage||"lead").toLowerCase();
+  const sum=k=>rows.filter(r=>st(r)===k).reduce((a,r)=>a+amt(r),0);
+  if(!rows.length) return `<section class="panel"><h2>Deals</h2><p class="empty">No deals listed yet. Jarvis fills this from your Leads sheet on his morning round.</p></section>`;
+  const cols=stages.map(([k,l])=>{ const it=rows.filter(r=>st(r)===k); return `<div class="col"><h3>${l}<span>${it.length}${sum(k)?" · $"+sum(k).toLocaleString():""}</span></h3>${it.map(r=>`<div class="card"><div class="tt">${esc(r.Business)}</div>${amt(r)?`<div class="mono" style="color:var(--text)">$${amt(r).toLocaleString()}</div>`:""}<div class="muted" style="font-size:12px;margin:4px 0 8px">${esc(r["Next step"]||"")}${r["Last touch"]?` · ${esc(r["Last touch"])}`:""}</div>
+      <div class="row" style="gap:6px">${k==="lead"||k==="pitched"?`<button class="btn small" data-say="Make a sponsor kit for ${esc(r.Business)}: a one-page offer PDF, an Instagram DM, an email and a price menu. Drafts only.">Sponsor kit</button>`:""}${k==="yes"?`<button class="btn small" data-say="Draft an invoice for ${esc(r.Business)}${amt(r)?" for $"+amt(r):""}. Draft only, I'll approve before it's sent.">Draft invoice</button>`:""}${k==="invoiced"?`<button class="btn small" data-say="Draft a friendly payment reminder for ${esc(r.Business)}. Draft only.">Reminder</button>`:""}</div></div>`).join("")||'<p class="empty" style="font-size:12px">None</p>'}</div>`; }).join("");
+  const lost=rows.filter(r=>st(r)==="lost").length;
+  return `<section class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Deals</h2><span class="muted" style="font-size:12px">${updatedLine(S.deals)?"Updated "+esc(updatedLine(S.deals)):""}${lost?` · ${lost} lost`:""}</span></div>
+    <div class="board" style="grid-template-columns:repeat(5,minmax(190px,1fr));margin-top:14px">${cols}</div></section>`;
+}
+function followerChart(g){
+  if(!g.fr.length) return '<p class="empty">No follower counts logged yet.</p>';
+  const W=640,H=220,pl=44,pr=104,pt=14,pb=26; const t0=new Date(g.fr[0].date+"T12:00:00"), t1=new Date("2026-12-31T12:00:00"); const span=Math.max(1,t1-t0);
+  const x=d=>pl+(W-pl-pr)*((new Date(d+"T12:00:00")-t0)/span), y=v=>pt+(H-pt-pb)*(1-Math.min(1,v/1000));
+  const pts=g.fr.map(r=>[x(r.date),y(r.n),r]); const last=pts[pts.length-1];
+  return `<div class="chart"><svg style="max-width:760px;display:block" viewBox="0 0 ${W} ${H}" role="img" aria-label="Followers over time against the pace needed for 1,000 by Dec 31">
+    ${[0,500,1000].map(v=>`<line class="grid" x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${pl-8}" y="${y(v)+4}" text-anchor="end">${v.toLocaleString()}</text>`).join("")}
+    <line x1="${pts[0][0]}" y1="${pts[0][1]}" x2="${x("2026-12-31")}" y2="${y(1000)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 5"/>
+    <text class="axis" x="${W-pr+6}" y="${y(1000)+4}">Pace needed</text>
+    <polyline points="${pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ")}" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+    ${pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4.5" fill="var(--cyan)" stroke="#0b0d13" stroke-width="2"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="13" fill="transparent" data-tip="${esc(p[2].date)}: ${p[2].n.toLocaleString()} followers (${esc(p[2].platform)})"/>`).join("")}
+    <text x="${last[0]-6}" y="${last[1]-16}" style="font:600 12px var(--mono);fill:var(--text)">${last[2].n.toLocaleString()}</text>
+    <text class="axis" x="${pl}" y="${H-6}">${esc(g.fr[0].date.slice(5))}</text><text class="axis" x="${W-pr}" y="${H-6}" text-anchor="end">Dec 31</text>
+  </svg></div>${dataTable(g.fr.map(r=>[r.date,r.platform,r.n]),["Date","Platform","Followers"])}`;
+}
+function weekCalendar(){
+  const rows=table(S.calendar||"").filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.Date||"")); const today=todayCT(); const base=new Date(today+"T12:00:00"); const dow=(base.getDay()+6)%7;
+  const days=[...Array(7)].map((_,i)=>{ const d=new Date(base); d.setDate(d.getDate()-dow+i); return d.toISOString().slice(0,10); });
+  const dot=s=>({posted:"ok",queued:"",planned:"",hold:"warn"})[(s||"").toLowerCase()]??"";
+  const inWeek=rows.filter(r=>days.includes(r.Date));
+  return `<section class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">This week's posts · ${inWeek.length}</h2><span class="muted" style="font-size:12px">${updatedLine(S.calendar)?"Updated "+esc(updatedLine(S.calendar)):""}</span></div>
+    ${rows.length?"":'<p class="empty" style="margin-bottom:0">No posts listed yet. Jarvis asks YT/TT and WiN Me Some Money to fill this each morning.</p>'}
+    <div class="week" style="margin-top:14px">${days.map(d=>{ const it=inWeek.filter(r=>r.Date===d).sort((a,b)=>(a.Time||"").localeCompare(b.Time||"")); const dt=new Date(d+"T12:00:00");
+      return `<div class="day ${d===today?"today":""}"><div class="dn">${dt.toLocaleDateString("en-US",{weekday:"short"})} ${dt.getDate()}</div>${it.map(r=>`<div class="post"><div class="pm"><span class="dot ${dot(r.Status)}"></span>${esc(r.Platform||"")}${r.Time?" · "+esc(r.Time):""} · ${esc(r.Status||"")}</div>${esc(r.Title||"")}</div>`).join("")||`<div class="muted" style="font-size:12px;margin-top:8px">${d>=today?"Open slot":""}</div>`}</div>`; }).join("")}</div></section>`;
+}
+function engageQueue(){
+  const rows=table(S.engage||"").filter(r=>r.Account); let done=[]; try{ done=JSON.parse(localStorage.getItem("jarvis.eq."+todayCT())||"[]"); }catch{}
+  const safe=u=>/^https:\/\//i.test(u||"")?u:"";
+  return `<section class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Comment queue · ${rows.length}</h2><span class="muted" style="font-size:12px">${updatedLine(S.engage)?"Updated "+esc(updatedLine(S.engage)):""}</span></div>
+    <p class="muted" style="margin:8px 0 14px;font-size:13px">Ten local accounts worth a comment each day. Copy the draft, open the post, paste, tick it off. About 5 minutes.</p>
+    ${rows.length?`<div class="eq">${rows.map(r=>`<div class="it ${done.includes(r.Account)?"done":""}"><div class="row" style="justify-content:space-between"><b>${esc(r.Account)}</b><label class="toggle" style="padding:0;font-size:12px"><input type="checkbox" data-eqdone="${esc(r.Account)}" ${done.includes(r.Account)?"checked":""}> Done</label></div>
+      <div class="muted" style="font-size:12px">${esc(r.Why||"")}</div><div class="cm">${esc(r["Draft comment"]||"")}</div>
+      <div class="row"><button class="btn small" data-copy="${esc(r["Draft comment"]||"")}">Copy comment</button>${safe(r.Link)?`<a class="btn small" target="_blank" rel="noopener" href="${esc(safe(r.Link))}">Open post</a>`:""}</div></div>`).join("")}</div>`:'<p class="empty">No list yet. Hermes writes it each morning once his PC is on.</p>'}</section>`;
+}
+function goalsView(){
+  const g=goalData(); const tab=S.goalTab||"money"; const wk=Math.max(1,g.days/7);
+  const head=`<div class="row" style="justify-content:space-between;margin-bottom:16px"><h1 style="margin:0">Goals</h1><div class="seg" role="tablist"><button data-seg="money" class="${tab==="money"?"on":""}">Money</button><button data-seg="audience" class="${tab==="audience"?"on":""}">Audience</button></div></div>`;
+  if(tab==="money"){ const left=Math.max(0,5000-g.money);
+    return head+`<div class="grid" style="gap:16px"><section class="panel glow"><h2>$5,000 by Dec 31</h2><div class="row" style="align-items:baseline;gap:10px"><span class="bigstat">$${g.money.toLocaleString()}</span><span class="muted">of $5,000</span></div>
+      <div class="track"><i style="width:${Math.min(100,g.money/50)}%"></i></div>
+      <div class="row muted" style="justify-content:space-between;font-size:13px"><span>${g.days} days left</span><span>Pace needed: about $${Math.ceil(left/wk).toLocaleString()} a week</span></div></section>${dealsBoard()}</div>`; }
+  const need=Math.max(0,1000-g.followers);
+  return head+`<div class="grid" style="gap:16px"><section class="panel glow"><h2>1,000 followers by Dec 31</h2><div class="row" style="align-items:baseline;gap:10px"><span class="bigstat">${g.followers.toLocaleString()}</span><span class="muted">of 1,000${g.fr.length?" · "+esc(g.fr[g.fr.length-1].platform):""}</span></div>
+    <div class="track"><i style="width:${Math.min(100,g.followers/10)}%"></i></div>
+    <div class="row muted" style="justify-content:space-between;font-size:13px"><span>${g.days} days left</span><span>Pace needed: about ${Math.ceil(need/Math.max(1,g.days))} new followers a day</span></div>
+    <div style="margin-top:16px">${followerChart(g)}</div>
+    <div class="row" style="margin-top:12px"><button class="btn small" id="logCount">Log today's count</button></div></section>${weekCalendar()}${engageQueue()}</div>`;
+}
 
 /* ---------- agent graph ---------- */
 const HS={busy:{c:"var(--green)",l:"Working"},idle:{c:"#4aa8ff",l:"Idle"},wait:{c:"var(--amber)",l:"Waiting on you"},off:{c:"var(--red)",l:"Offline"},unk:{c:"var(--dim)",l:"No status"}};
@@ -950,7 +1146,7 @@ function hiveDraw(){
   set(svg.querySelector("#hcHalo"),{r:(44+3*Math.sin(t*2)).toFixed(1)});
   set(svg.querySelector("#hcRing"),{transform:`rotate(${((t*30)%360).toFixed(1)})`});
 }
-function hiveLoop(){ cancelAnimationFrame(HIVE.raf); if(S.view!=="graph") return; hiveDraw(); if(!HIVE.paused && !matchMedia("(prefers-reduced-motion: reduce)").matches) HIVE.raf=requestAnimationFrame(hiveLoop); }
+function hiveLoop(){ cancelAnimationFrame(HIVE.raf); if(S.view!=="agents") return; hiveDraw(); if(!HIVE.paused && !matchMedia("(prefers-reduced-motion: reduce)").matches) HIVE.raf=requestAnimationFrame(hiveLoop); }
 function hiveWire(){
   const svg=$("#hiveSvg"); if(!svg) return;
   svg.onclick=e=>{ const g=e.target.closest("[data-node]"); if(!g) return; HIVE.sel=g.dataset.node; $("#hivePanel").innerHTML=hivePanel(HIVE.sel); wirePanel(); hiveBuild(); };
@@ -958,7 +1154,7 @@ function hiveWire(){
   $("#hivePause").onclick=()=>{ HIVE.paused=!HIVE.paused; if(!HIVE.paused) HIVE.t0=performance.now()-(HIVE.frozen||0); $("#hive").classList.toggle("paused",HIVE.paused); $("#hivePause").textContent=HIVE.paused?"▶":"❚❚"; hiveLoop(); };
   wirePanel(); hiveLoop();
 }
-function wirePanel(){ document.querySelectorAll("#hivePanel [data-talk]").forEach(b=>b.onclick=openTalk); document.querySelectorAll("#hivePanel [data-ask]").forEach(b=>b.onclick=()=>{ go("overview"); const t=$("#askText"); t.value=`Ask ${b.dataset.ask}: `; t.focus(); }); }
+function wirePanel(){ document.querySelectorAll("#hivePanel [data-talk]").forEach(b=>b.onclick=openTalk); document.querySelectorAll("#hivePanel [data-ask]").forEach(b=>b.onclick=()=>askAgent(b.dataset.ask));  }
 
 /* ---------- vault graph (Obsidian-style) ---------- */
 const VG_GROUPS=[["entities","People and businesses","#3987e5"],["concepts","Topics","#d95926"],["comparisons","Comparisons","#199e70"],["queries","Research","#c98500"],["raw","Sources","#d55181"],["_jarvis","Jarvis","#008300"],["other","Vault pages","#8aa0c2"]];
@@ -1001,7 +1197,7 @@ function vgDraw(){
   for (const n of VG.nodes) { if(!vgVisible(n)) continue; const hit=q&&(n.title.toLowerCase().includes(q)||n.id.toLowerCase().includes(q)); const dim=(near&&!near.has(n))||(q&&!hit);
     g.globalAlpha=dim?0.15:1; g.fillStyle=col(n.group); g.beginPath(); g.arc(n.x,n.y,n.r,0,7); g.fill();
     if (n.id===VG.sel||hit) { g.strokeStyle="#fff"; g.lineWidth=2/k; g.stroke(); } }
-  g.font=`${12/Math.max(k,0.6)}px Inter, system-ui, sans-serif`; g.textAlign="center";
+  g.font=`${12/Math.max(k,0.6)}px Geist, system-ui, sans-serif`; g.textAlign="center";
   for (const n of VG.nodes) { if(!vgVisible(n)) continue; const big=near&&near.size>12; const show=n===focus||(near&&near.has(n)&&(!big||n.deg>=4||k>1.4))||(!near&&(k>1.5||n.deg>=(innerWidth<640?12:8)))||(q&&n.title.toLowerCase().includes(q)); if(!show) continue;
     g.globalAlpha=(near&&!near.has(n))?0.15:0.9; g.lineWidth=3/k; g.strokeStyle="#0b0f17"; g.strokeText(n.title,n.x,n.y+n.r+13/Math.max(k,0.6)); g.fillStyle="#e6eefc"; g.fillText(n.title,n.x,n.y+n.r+13/Math.max(k,0.6)); }
   g.globalAlpha=1;
@@ -1094,6 +1290,7 @@ async function boot(){
   if("speechSynthesis" in window) speechSynthesis.onvoiceschanged=()=>{ if(S.view==="settings") render(); };
   try { S.view=localStorage.getItem("jarvis.view")||S.view; } catch {}
   if (S.view==="settings" && location.hash!=="#settings") S.view="overview";
+  if (S.view==="graph") S.view="agents"; if (!views[S.view]) S.view="overview";
   document.querySelectorAll("#nav button[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===S.view));
   if (new URLSearchParams(location.search).has("demo")) { vault=new DemoVault(DEMO); return loadAll(); }
   $("#ghToggle").onclick=e=>{ e.preventDefault(); showGh($("#ghBox").classList.contains("hidden")); };
@@ -1108,12 +1305,12 @@ async function boot(){
   if (h) { $("#connectBtn").textContent="Reconnect vault"; $("#connectMsg").textContent="Windows needs you to allow access to the vault again. One click."; }
 }
 setInterval(()=>{ if (vault && document.visibilityState==="visible") loadAll(); }, 120000);
-addEventListener("resize",()=>{ if(S.view==="graph" && $("#hiveSvg")) hiveBuild(); });
+addEventListener("resize",()=>{ if(S.view==="agents" && $("#hiveSvg")) hiveBuild(); });
 
 /* ---------- demo data (preview only) ---------- */
 const DEMO = {
 "_jarvis/agents.md": "# Jarvis: agents and profiles\n\n## Claude profiles (cloud, Claude Code sessions)\n| Topic keywords | Profile | Session | Controlled by |\n|---|---|---|---|\n| tiktok, youtube, shorts | **YT/TT** | `session_demo1` | Socials Team Doc |\n| money, business, website | **WiN Me Some Money** (W,N,M,SM) | `session_demo2` | CLAUDE.md |\n| idea check, verdict | **Judge Judy** | `session_demo3` | its own chat |\n\n## Jarvis HQ\nJarvis HQ session: `session_demohq`\nJarvis Desk session: `session_demodesk`\n",
-"_jarvis/briefs/2026-11-06.md": "# Jarvis brief: Fri Nov 6, 2026\n\nLast round: 9:07 AM Central. Two things need you.\n\n## Needs Leotus\n1. **YT/TT, Nov 3 Short:** leave it, or delete and repost the new version?\n2. **16 outreach follow-ups** drafted, approval blank.\n\n## Moving\n- Parker Dewey Short posts today at 12:00 PM.\n\n## Done today\n- Hermes heartbeat received.\n\n## Agent health\n| Agent | State | Notes |\n|---|---|---|\n| YT/TT | Blocked on Leotus | Item 1 |\n| WiN Me Some Money | Idle, done | |\n| Judge Judy | Idle, done | |\n| Hermes | Online | Heartbeat 8:58 AM |\n",
+"_jarvis/briefs/2026-11-06.md": "# Jarvis brief: Fri Nov 6, 2026\n\nLast round: 9:07 AM Central. Two things need you.\n\n## Focus today\n1. Record the Bonjour voiceover.\n2. Approve proposals 1 and 2.\n3. Send Neko Coffee the invoice.\n\n## Needs Leotus\n1. **YT/TT, Nov 3 Short:** leave it, or delete and repost the new version?\n2. **16 outreach follow-ups** drafted, approval blank.\n\n## Moving\n- Parker Dewey Short posts today at 12:00 PM.\n\n## Done today\n- Hermes heartbeat received.\n\n## Agent health\n| Agent | State | Notes |\n|---|---|---|\n| YT/TT | Blocked on Leotus | Item 1 |\n| WiN Me Some Money | Idle, done | |\n| Judge Judy | Idle, done | |\n| Hermes | Online | Heartbeat 8:58 AM |\n",
 "_jarvis/briefs/2026-11-05.md": "# Jarvis brief: Thu Nov 5\n\nLast round: 11:07 PM Central.\n\n## Needs Leotus\n1. A\n2. B\n3. C\n4. D\n5. E\n",
 "_jarvis/heartbeats/hermes.md": "last_seen: 2026-11-06 08:58 Central\nopen_tasks: 1\nerrors: none\n",
 "_jarvis/tasks/2026-11-06-list-new-leads.md": "---\nassignee: hermes\nstatus: doing\npriority: high\ncreated: 2026-11-06\n---\n# List today's new leads\n",
@@ -1123,6 +1320,10 @@ const DEMO = {
 "_jarvis/chat/2026-11-09T15-00-00-leotus.md": "---\nfrom: leotus\n---\nAny proposals waiting?\n",
 "_jarvis/chat/2026-11-09T15-00-40-jarvis.md": "---\nfrom: jarvis\nre: [_jarvis/chat/2026-11-09T15-00-00-leotus.md]\n---\nTwo are waiting:\n- **#1** WiN Me Some Money drafts offers for 3 local sponsors.\n- **#2** YT/TT picks 3 Short topics from your best performers.\n\nReply Y 1 or Y 2 to proceed.\n",
 "_jarvis/proposals.md": "# Proposals\n\n| # | Date | Goal | Proposal | Bee | Status | Leotus's reply |\n|---|---|---|---|---|---|---|\n| 1 | 2026-11-08 | 1 | WiN Me Some Money: list 3 local sponsor targets and draft a one-page offer for each. | WiN Me Some Money | pending | |\n| 2 | 2026-11-08 | 2 | YT/TT: review the last 2 weeks of Shorts and propose 3 next topics. | YT/TT | pending | |\n",
+"_jarvis/goals.md": "# Goals\n\n## 1. Make at least $5,000 USD by the end of 2026\n| Date | Source | Amount | Confirmed by |\n|---|---|---|---|\n| 2026-11-09 | Starting point | $0 | Leotus |\n| 2026-11-12 | Bonjour Bakery reel | $150 | Leotus |\n\n## 2. Reach about 1,000 followers\n| Date | Platform | Followers | Source |\n|---|---|---|---|\n| 2026-11-09 | Instagram | about 20 | Leotus |\n| 2026-11-12 | Instagram | 41 | Leotus |\n",
+"_jarvis/data/deals.md": "# Deals\n\nUpdated: sample\n\n| Business | Stage | Amount | Next step | Last touch | Leads row |\n|---|---|---|---|---|---|\n| Bonjour Bakery | paid | $150 | Ask for a testimonial | Nov 12 | 23 |\n| Neko Coffee | yes | $200 | Send invoice | Nov 11 | 31 |\n| Kafe Krave | pitched | | Follow up Friday | Nov 10 | 12 |\n| Reunion Coffee | lead | | First message | | 8 |\n",
+"_jarvis/data/calendar.md": "# Content calendar\n\nUpdated: sample\n\n| Date | Time | Platform | Title | Status |\n|---|---|---|---|---|\n| "+new Date().toISOString().slice(0,10)+" | 12:00 PM | TikTok | Free museum days | queued |\n| "+new Date().toISOString().slice(0,10)+" | 6:30 PM | Instagram | Career fair Reel | posted |\n",
+"_jarvis/data/engage.md": "# Engagement queue\n\nUpdated: sample\n\n| Account | Link | Why | Draft comment |\n|---|---|---|---|\n| @utsa | https://instagram.com/utsa | Posts student events daily | Love seeing this. Students ask us about it every week. |\n| @visitsanantonio | https://instagram.com/visitsanantonio | Local reach | Adding this to our free-events list for students. |\n",
 "_jarvis/inbox.md": "# Jarvis inbox\n\n- [ ] \n",
 "log.md": "# Log\n\n## [2026-10-28] update | Week plan (Hermes)\n## [2026-10-30] update | Outreach drafts (Claude)\n## [2026-11-01] update | Briefing (Hermes)\n## [2026-11-01] update | Social profile (Claude)\n## [2026-11-03] update | Shorts re-render (Claude)\n## [2026-11-04] update | Discord Reel held (Claude)\n## [2026-11-04] update | GroupMe swap (Claude)\n## [2026-11-05] create | Jarvis installed (Claude)\n## [2026-11-05] update | Bonjour Bakery call: Google Meet link added (Claude)\n## [2026-11-05] update | Heartbeat (Hermes)\n",
 "entities/hermes.md": "# Hermes", "entities/bonjour-bakery.md": "# Bonjour", "concepts/instagram-autopilot.md": "# IG"
