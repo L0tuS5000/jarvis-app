@@ -451,7 +451,10 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const settings = (() => { try { return JSON.parse(localStorage.getItem("jarvis.settings") || "{}"); } catch { return {}; } })();
 const saveSettings = () => { try { localStorage.setItem("jarvis.settings", JSON.stringify(settings)); } catch {} };
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2600); }
-const obsidianLink = path => `obsidian://open?vault=${encodeURIComponent(VAULT_NAME)}&file=${encodeURIComponent(path.replace(/\.md$/,""))}`;
+const JOB_REPO = "L0tuS5000/Job-Market-Research";
+const jobVaultName = () => { try{ return localStorage.getItem("jarvis.jobVaultName")||"Job-Market-Research"; }catch{ return "Job-Market-Research"; } };
+const curVaultName = () => S.vaultSel==="job" ? jobVaultName() : VAULT_NAME;
+const obsidianLink = path => `obsidian://open?vault=${encodeURIComponent(curVaultName())}&file=${encodeURIComponent(path.replace(/\.md$/,""))}`;
 const sessionLink = id => `https://claude.ai/code/${encodeURIComponent(id)}`;
 
 /* ---------- markdown ---------- */
@@ -625,9 +628,23 @@ _agents(){
   </div>`;
 },
 vault(){
+  const sel=S.vaultSel||"tcc";
+  const head=`<div class="row" style="justify-content:space-between;margin-bottom:16px"><h1 style="margin:0">Vault</h1><div class="row"><div class="seg" role="tablist"><button data-vsel="tcc" class="${sel==="tcc"?"on":""}">TCC</button><button data-vsel="job" class="${sel==="job"?"on":""}">Job research</button></div><a class="btn primary" href="obsidian://open?vault=${encodeURIComponent(curVaultName())}">Open in Obsidian</a></div></div>`;
+  if (sel==="job") {
+    if (!jobVault()) return head+`<section class="panel"><h2>Job research vault</h2><p class="muted">This vault is read from GitHub (${JOB_REPO}). Connect GitHub in Settings first, with a token that can read that repo.</p></section>`;
+    if (JV.err) return head+`<section class="panel"><h2>Can't read the job research vault</h2><p class="muted">${JV.err==="empty"?"The repo has no OUTREACH-QUEUE.md or tracker.md yet.":`GitHub said: ${esc(JV.err)}. Your GitHub token may not include ${JOB_REPO}. Edit the token on GitHub (Repository access: add Job-Market-Research, Contents: read), then refresh.`}</p><button class="btn small" id="jobRetry">Try again</button></section>`;
+    const rows=table(JV.tracker||"").filter(r=>r.Company);
+    const name=c=>(c||"").replace(/\[([^\]]+)\]\([^)]*\)/,"$1").replace(/\*\*/g,"");
+    return head+`${vgView()}
+    <div class="grid g2">
+      <section class="panel"><h2>Pipeline · ${rows.length}</h2>${rows.length?`<ul class="list">${rows.slice(0,14).map(r=>`<li><span class="tag">${esc(r.Status||"")}</span><span><b>${esc(name(r.Company))}</b><br><span class="muted" style="font-size:12.5px">${esc((r["Next Action"]||"").replace(/\*\*/g,"").slice(0,140))}</span></span></li>`).join("")}</ul>`:'<p class="empty">No tracker rows found.</p>'}</section>
+      <section class="panel"><h2>Find a note</h2><input id="noteSearch" placeholder="Type to filter notes"><div id="noteList" class="files" style="margin-top:12px"></div>
+        <label class="muted" style="display:block;margin-top:14px;font-size:12px">Obsidian vault name on your PC (for the Open buttons)<input id="jobVaultName" value="${esc(jobVaultName())}" style="margin-top:6px"></label></section>
+    </div>
+    <section class="panel md" style="margin-top:16px"><h2>Outreach queue</h2>${JV.queue===null?'<p class="empty">Loading...</p>':md((JV.queue||"").replace(/^---[\s\S]*?---\s*/,"").slice(0,6000))}<p class="muted" style="font-size:12px">Read-only. Nothing here is sent from the app.</p></section>`;
+  }
   const entries=[...S.log.matchAll(/^## \[(\d{4}-\d{2}-\d{2})\]\s*([^|\n]*)\|\s*(.*)$/gm)].slice(-15).reverse();
-  return `<div class="row" style="justify-content:space-between;margin-bottom:16px"><h1>Vault</h1><a class="btn primary" href="obsidian://open?vault=${VAULT_NAME}">Open TCC in Obsidian</a></div>
-  ${vgView()}
+  return head+`${vgView()}
   <div class="grid g2">
     <section class="panel"><h2>Latest activity (log.md)</h2><ul class="list">${entries.map(e=>`<li><span class="mono">${e[1]}</span><span><span class="tag">${esc(e[2].trim())}</span> ${esc(e[3])}</span></li>`).join("")||'<li class="empty">No log entries</li>'}</ul></section>
     <section class="panel"><h2>Find a note</h2><input id="noteSearch" placeholder="Type to filter notes"><div id="noteList" class="files" style="margin-top:12px"></div></section>
@@ -743,7 +760,7 @@ async function createTask(){
 }
 async function renderNotes(filter=""){
   const el=$("#noteList"); if (!el) return;
-  if (!S._notes){ S._notes=[]; for (const dir of ["entities","concepts","queries","comparisons"]) for (const f of await vault.list(dir)) if (f.kind==="file"&&f.name.endsWith(".md")) S._notes.push(`${dir}/${f.name}`); }
+  if (!S._notes){ S._notes=[]; const dirs=S.vaultSel==="job"?["",...VG_SETS.job.dirs]:["entities","concepts","queries","comparisons"]; for (const dir of dirs) for (const f of await gv().list(dir)) if (f.kind==="file"&&f.name.endsWith(".md")) S._notes.push(dir?`${dir}/${f.name}`:f.name); }
   const q=filter.toLowerCase(); const hits=S._notes.filter(n=>n.toLowerCase().includes(q)).slice(0,120);
   el.innerHTML=hits.map(n=>`<a href="${obsidianLink(n)}">${esc(n.replace(/\.md$/,""))}</a>`).join("")||'<span class="empty">No matches</span>';
 }
@@ -779,7 +796,10 @@ function render(){
   document.querySelectorAll("[data-seg]").forEach(b=>b.onclick=()=>{ S.goalTab=b.dataset.seg; render(); });
   document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{ await copyText(b.dataset.copy); toast("Copied"); });
   document.querySelectorAll("[data-eqdone]").forEach(b=>b.onchange=()=>{ const k="jarvis.eq."+todayCT(); let d=[]; try{d=JSON.parse(localStorage.getItem(k)||"[]");}catch{} b.checked?d.push(b.dataset.eqdone):d=d.filter(x=>x!==b.dataset.eqdone); try{localStorage.setItem(k,JSON.stringify(d));}catch{} b.closest(".it").classList.toggle("done",b.checked); });
-  if (S.view==="vault") { renderNotes(); vgWire(); } else cancelAnimationFrame(VG.raf);
+  if (S.view==="vault") { if(!(S.vaultSel==="job"&&!jobVault())) { renderNotes(); vgWire(); if(S.vaultSel==="job") jobLoad(); } } else cancelAnimationFrame(VG.raf);
+  document.querySelectorAll("[data-vsel]").forEach(b=>b.onclick=()=>switchVault(b.dataset.vsel));
+  on("#jobRetry","click",()=>{ JV.queue=null; JV.err=null; JV.v=null; render(); });
+  on("#jobVaultName","change",e=>{ try{ localStorage.setItem("jarvis.jobVaultName",e.target.value.trim()); }catch{} render(); });
   if (S.view==="agents") hiveWire(); else cancelAnimationFrame(HIVE.raf);
   if (S.view==="chat") chatWire();
 }
@@ -1157,26 +1177,39 @@ function hiveWire(){
 function wirePanel(){ document.querySelectorAll("#hivePanel [data-talk]").forEach(b=>b.onclick=openTalk); document.querySelectorAll("#hivePanel [data-ask]").forEach(b=>b.onclick=()=>askAgent(b.dataset.ask));  }
 
 /* ---------- vault graph (Obsidian-style) ---------- */
-const VG_GROUPS=[["entities","People and businesses","#3987e5"],["concepts","Topics","#d95926"],["comparisons","Comparisons","#199e70"],["queries","Research","#c98500"],["raw","Sources","#d55181"],["_jarvis","Jarvis","#008300"],["other","Vault pages","#8aa0c2"]];
+const VG_SETS={
+  tcc:{groups:[["entities","People and businesses","#3987e5"],["concepts","Topics","#d95926"],["comparisons","Comparisons","#199e70"],["queries","Research","#c98500"],["raw","Sources","#d55181"],["_jarvis","Jarvis","#008300"],["other","Vault pages","#8aa0c2"]], dirs:["entities","concepts","comparisons","queries","raw","_jarvis"]},
+  job:{groups:[["targets","Target businesses","#3987e5"],["drafts","Outreach drafts","#d95926"],["notes","Cycle notes","#199e70"],["jobs","Job postings","#c98500"],["builds","Builds","#d55181"],["Automation-Scanner","Automation scanner","#008300"],["other","Vault pages","#8aa0c2"]], dirs:["targets","drafts","notes","jobs","builds","Automation-Scanner"]} };
+let VG_GROUPS=VG_SETS.tcc.groups;
 const VG={nodes:null, links:null, byId:null, cam:{x:0,y:0,k:1}, sel:null, hover:null, q:"", hidden:new Set(), raf:0, alpha:0, loading:false};
 function vgGroup(path){ const top=path.split("/")[0]; return VG_GROUPS.some(g=>g[0]===top)?top:"other"; }
-async function vgListMd(dir, depth=2){ const out=[]; for (const f of await vault.list(dir)) { const p=dir?`${dir}/${f.name}`:f.name;
+async function vgListMd(dir, depth=2){ const out=[]; for (const f of await gv().list(dir)) { const p=dir?`${dir}/${f.name}`:f.name;
     if (f.kind==="file" && f.name.endsWith(".md")) out.push(p); else if (f.kind==="directory" && depth>0 && !f.name.startsWith(".") && !["briefs","heartbeats","tasks","app","hermes-skill","handoffs","brain"].includes(f.name)) out.push(...await vgListMd(p, depth-1)); }
   return out; }
 async function vgLoad(force=false){
-  if (VG.nodes && !force) return; if (VG.loading) return; VG.loading=true;
+  if (VG.nodes && !force) return; if (VG.loading) return; VG.loading=true; const forSel=S.vaultSel||"tcc";
   try {
-    const paths=[...(await vgListMd("",0)), ...(await Promise.all(["entities","concepts","comparisons","queries","raw","_jarvis"].map(d=>vgListMd(d, d==="_jarvis"?1:2)))).flat()];
-    const texts={}; let i=0; const workers=Array.from({length:8},async()=>{ while(i<paths.length){ const p=paths[i++]; texts[p]=(await vault.read(p).catch(()=>""))||""; } }); await Promise.all(workers);
+    const paths=[...(await vgListMd("",0)), ...(await Promise.all(VG_SETS[S.vaultSel||"tcc"].dirs.map(d=>vgListMd(d, d==="_jarvis"?1:2)))).flat()];
+    const texts={}; let i=0; const workers=Array.from({length:8},async()=>{ while(i<paths.length){ const p=paths[i++]; texts[p]=(await gv().read(p).catch(()=>""))||""; } }); await Promise.all(workers);
     const key=p=>p.split("/").pop().replace(/\.md$/i,"").toLowerCase();
     const byKey={}; const nodes=paths.map(p=>{ const {fm,body}=frontmatter(texts[p]); const n={id:p, key:key(p), title:(fm.title||p.split("/").pop().replace(/\.md$/,"")).replace(/^["']|["']$/g,""), group:vgGroup(p), body, deg:0}; byKey[n.key]=byKey[n.key]||n; return n; });
     const links=[]; const seen=new Set();
     for (const n of nodes) for (const m of n.body.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/g)) { const t=byKey[m[1].trim().split("/").pop().toLowerCase()]; if (!t||t===n) continue; const k=[n.id,t.id].sort().join("|"); if (seen.has(k)) continue; seen.add(k); links.push({s:n,t}); n.deg++; t.deg++; }
     nodes.forEach((n,j)=>{ const a=j*2.399, r=30*Math.sqrt(j+1); n.x=r*Math.cos(a); n.y=r*Math.sin(a); n.vx=0; n.vy=0; n.r=3.5+Math.sqrt(n.deg)*2.2; });
+    if ((S.vaultSel||"tcc")!==forSel){ VG.cache=VG.cache||{}; VG.cache[forSel]={nodes,links,byId:Object.fromEntries(nodes.map(n=>[n.id,n]))}; return; }
     VG.ticks=0; VG.userMoved=false;
     VG.nodes=nodes; VG.links=links; VG.byId=Object.fromEntries(nodes.map(n=>[n.id,n])); VG.alpha=1; VG.cam={x:0,y:0,k:0.9};
   } finally { VG.loading=false; }
 }
+function gv(){ return S.vaultSel==="job" ? jobVault() : vault; }
+function jobVault(){ let tok=null; try{ tok=JSON.parse(localStorage.getItem("jarvis.gh")||"null")?.token; }catch{} if(!tok) return null; return (JV.v&&JV.v.token===tok)?JV.v:(JV.v=new GitHubVault(JOB_REPO,tok)); }
+const JV={v:null, queue:null, tracker:null, err:null, cache:{}};
+function switchVault(sel){ if(sel===S.vaultSel) return; VG.cache=VG.cache||{}; VG.cache[S.vaultSel||"tcc"]={nodes:VG.nodes,links:VG.links,byId:VG.byId};
+  cancelAnimationFrame(VG.raf); S.vaultSel=sel; try{ localStorage.setItem("jarvis.vaultSel",sel); }catch{} VG_GROUPS=VG_SETS[sel].groups; const c=VG.cache[sel]||{};
+  VG.nodes=c.nodes||null; VG.links=c.links||null; VG.byId=c.byId||null; VG.sel=null; VG.hover=null; VG.q=""; VG.hidden.clear(); VG.userMoved=false; VG.ticks=0; S._notes=null; render(); }
+async function jobLoad(){ const v=jobVault(); if(!v||JV.queue!==null) return;
+  try{ [JV.queue,JV.tracker]=await Promise.all([v.read("OUTREACH-QUEUE.md"),v.read("tracker.md")]); JV.err=(JV.queue===null&&JV.tracker===null)?"empty":null; }
+  catch(e){ JV.queue=""; JV.err=String(e.message||e); } if(S.view==="vault"&&S.vaultSel==="job") render(); }
 function vgVisible(n){ return !VG.hidden.has(n.group); }
 function vgStep(){ const N=VG.nodes.filter(vgVisible), L=VG.links.filter(l=>vgVisible(l.s)&&vgVisible(l.t)), a=VG.alpha;
   for (let i=0;i<N.length;i++) for (let j=i+1;j<N.length;j++) { const p=N[i], q=N[j]; let dx=q.x-p.x, dy=q.y-p.y, d2=dx*dx+dy*dy||0.01; if (d2>250000) continue; const f=2400*a/d2, d=Math.sqrt(d2); dx/=d; dy/=d; p.vx-=dx*f; p.vy-=dy*f; q.vx+=dx*f; q.vy+=dy*f; }
@@ -1190,7 +1223,7 @@ function vgDraw(){
   const g=c.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
   const {x:cx,y:cy,k}=VG.cam; g.translate(W/2+cx,H/2+cy); g.scale(k,k);
   const focus=VG.hover||VG.byId[VG.sel]; const near=focus?vgNeighbors(focus):null; const q=VG.q.toLowerCase();
-  const col=gr=>(VG_GROUPS.find(x=>x[0]===gr)||VG_GROUPS[6])[2];
+  const col=gr=>(VG_GROUPS.find(x=>x[0]===gr)||VG_GROUPS[VG_GROUPS.length-1])[2];
   for (const l of VG.links) { if(!vgVisible(l.s)||!vgVisible(l.t)) continue; const on=near&&near.has(l.s)&&near.has(l.t)&&(l.s===focus||l.t===focus);
     g.strokeStyle=on?getComputedStyle(document.documentElement).getPropertyValue("--cyan"):"#ffffff"; g.globalAlpha=on?0.9:(near?0.05:0.14); g.lineWidth=(on?1.6:1)/k; g.beginPath(); g.moveTo(l.s.x,l.s.y); g.lineTo(l.t.x,l.t.y); g.stroke(); }
   g.globalAlpha=1;
@@ -1206,7 +1239,7 @@ function vgFit(){ const c=$("#vgCanvas"); const N=VG.nodes.filter(vgVisible); if
   for(const n of N){ x0=Math.min(x0,n.x); y0=Math.min(y0,n.y); x1=Math.max(x1,n.x); y1=Math.max(y1,n.y); }
   const pad=60, k=Math.min(2,Math.max(0.2,Math.min((c.clientWidth-pad)/(x1-x0||1),(c.clientHeight-pad-(innerWidth<640?0:70))/(y1-y0||1))));
   VG.cam={k, x:-(x0+x1)/2*k, y:-(y0+y1)/2*k+(innerWidth<640?0:25)}; }
-function vgLoop(){ cancelAnimationFrame(VG.raf); if(S.view!=="vault"||!$("#vgCanvas")) return;
+function vgLoop(){ cancelAnimationFrame(VG.raf); if(S.view!=="vault"||!$("#vgCanvas")||!VG.nodes) return;
   if (VG.alpha>0.002||VG.drag) vgStep();
   if (!VG.userMoved && (VG.ticks=(VG.ticks||0)+1)%20===0 && VG.ticks<=400) vgFit();
   vgDraw(); VG.raf=requestAnimationFrame(vgLoop); }
@@ -1215,7 +1248,7 @@ function vgPick(e){ const p=vgWorld(e); let best=null, bd=Infinity; for (const n
 function vgPanel(){ const n=VG.byId?.[VG.sel]; const el=$("#vgPanel"); if(!el) return;
   if(!n){ el.innerHTML=`<p class="muted" style="margin:0">Tap a note to see its links and a preview. Drag to move around, pinch or scroll to zoom.</p>`; return; }
   const out=VG.links.filter(l=>l.s===n).map(l=>l.t), inn=VG.links.filter(l=>l.t===n).map(l=>l.s); const lk=a=>a.map(m=>`<a href="#" data-vg="${esc(m.id)}">${esc(m.title)}</a>`).join("")||'<span class="muted">none</span>';
-  const g=VG_GROUPS.find(x=>x[0]===n.group)||VG_GROUPS[6];
+  const g=VG_GROUPS.find(x=>x[0]===n.group)||VG_GROUPS[VG_GROUPS.length-1];
   el.innerHTML=`<div class="row" style="justify-content:space-between"><div class="row"><i class="dot" style="background:${g[2]}"></i><b style="font-size:16px">${esc(n.title)}</b><span class="tag">${esc(g[1])}</span></div><a class="btn small primary" href="${obsidianLink(n.id)}">Open in Obsidian</a></div>
     <div class="mono" style="margin-top:6px">${esc(n.id)}</div>
     <div class="links" style="margin-top:8px"><span class="muted">Links to:</span> ${lk(out)}</div><div class="links"><span class="muted">Linked from:</span> ${lk(inn)}</div>
@@ -1231,7 +1264,7 @@ function vgView(){
     <section class="panel vgpanel" id="vgPanel" style="margin-top:12px"></section></section>`; }
 async function vgWire(){
   const c=$("#vgCanvas"); if(!c) return; vgPanel();
-  if(!VG.nodes){ await vgLoad(); if(S.view!=="vault") return; render(); return; }
+  if(!VG.nodes){ if(VG.loading) return; await vgLoad(); if(S.view!=="vault") return; render(); return; }
   let pts=new Map(), moved=0, start=null, pinch=null;
   c.onpointerdown=e=>{ c.setPointerCapture(e.pointerId); pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved=0; start={x:e.clientX,y:e.clientY};
     if(pts.size===1){ const n=vgPick(e); VG.drag=n||null; if(n){ VG.alpha=Math.max(VG.alpha,0.3); } c.classList.add("dragging"); } else { VG.drag=null; const [a,b]=[...pts.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y),k:VG.cam.k}; } };
@@ -1290,6 +1323,7 @@ async function boot(){
   if("speechSynthesis" in window) speechSynthesis.onvoiceschanged=()=>{ if(S.view==="settings") render(); };
   try { S.view=localStorage.getItem("jarvis.view")||S.view; } catch {}
   if (S.view==="settings" && location.hash!=="#settings") S.view="overview";
+  try{ S.vaultSel=localStorage.getItem("jarvis.vaultSel")==="job"?"job":"tcc"; }catch{ S.vaultSel="tcc"; } VG_GROUPS=VG_SETS[S.vaultSel].groups;
   if (S.view==="graph") S.view="agents"; if (!views[S.view]) S.view="overview";
   document.querySelectorAll("#nav button[data-view]").forEach(b=>b.classList.toggle("on",b.dataset.view===S.view));
   if (new URLSearchParams(location.search).has("demo")) { vault=new DemoVault(DEMO); return loadAll(); }
