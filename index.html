@@ -369,6 +369,15 @@ kbd{border-color:var(--line2);border-radius:6px}
   .bigstat{font-size:36px}
 }
 @media (prefers-reduced-motion:reduce){body::before,.panel.glow::before,main.enter>*{animation:none}}
+
+.modechip{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:999px;padding:5px 7px 5px 12px;font-size:12px;color:var(--muted);backdrop-filter:blur(12px);transition:.15s;white-space:nowrap}
+.modechip:hover{border-color:var(--line2);color:var(--text)}
+.modechip .sw{position:relative;width:30px;height:18px;border-radius:999px;background:rgba(255,255,255,.14);transition:.2s;flex:none}
+.modechip .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.2s}
+.modechip.on{color:var(--text);border-color:color-mix(in srgb,var(--amber) 55%,transparent);background:color-mix(in srgb,var(--amber) 12%,transparent)}
+.modechip.on .sw{background:var(--amber)}.modechip.on .sw::after{left:14px}
+.modechip:disabled{opacity:.5;cursor:default}
+@media (max-width:900px){.top #modeBtn{order:4;font-size:11px}}
 </style>
 </head>
 <body>
@@ -409,6 +418,7 @@ kbd{border-color:var(--line2);border-radius:6px}
 <div class="app" id="app">
   <header class="top">
     <div class="brand"><button class="orb" id="orb" title="Talk to Jarvis" aria-label="Talk to Jarvis"></button>Jarvis</div>
+    <button class="modechip" id="modeBtn" title="Manager Mode: Jarvis keeps agents working on safe tasks" aria-label="Manager Mode" aria-pressed="false"><span id="modeLbl">Manager mode</span><span class="sw"></span></button>
     <span class="chip" id="hermesChip"><span class="dot"></span>Hermes</span>
     <span class="chip" id="roundChip"><span class="dot"></span>Last round</span>
     <div class="spacer"></div>
@@ -516,6 +526,7 @@ async function loadAll(){
     vault.read("_jarvis/changelog.md"), vault.read("_jarvis/brain/contact-log.md"), vault.read("log.md"),
     vault.read("_jarvis/brain/memory.md"), vault.list("_jarvis/tasks")]);
   S.proposals=(await vault.read("_jarvis/proposals.md").catch(()=>"")) || "";
+  [S.modeMd,S.queueMd]=await Promise.all(["brain/mode.md","queue.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
   [S.goals,S.deals,S.calendar,S.engage]=await Promise.all(["goals.md","data/deals.md","data/calendar.md","data/engage.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
   { const pend=new Set(pendingProposals().map(p=>p.n)); const a=answered(); let ch=false; for (const k of Object.keys(a)) if(!pend.has(k)){ delete a[k]; ch=true; } if(ch) try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
   S.briefs = briefList.filter(f=>/^\d{4}-\d{2}-\d{2}\.md$/.test(f.name)).map(f=>f.name.slice(0,10)).sort().reverse();
@@ -557,7 +568,28 @@ function healthFor(name){
   return null; }
 
 /* ---------- chrome ---------- */
+function modeInfo(){ const {fm}=frontmatter(S.modeMd||""); const on=(fm.mode||"").toLowerCase()==="manager"; const today=todayCT();
+  return {on, used:fm.auto_tasks_date===today?(+fm.auto_tasks_used||0):0, cap:+fm.auto_tasks_cap||10, fm}; }
+function queueRows(){ return table(S.queueMd||"").filter(r=>/^\d+$/.test(r["#"]||"")); }
+async function toggleMode(){
+  const mi=modeInfo(), next=!mi.on;
+  const msg=next?"Turn Manager Mode ON?\n\nJarvis will keep your agents working through the task queue and add safe tasks on his own (up to "+mi.cap+" a day). Anything that needs approval still waits for your yes.":"Turn Manager Mode OFF?\n\nJarvis goes back to Reporter Mode: he watches, reports and suggests, but only starts work you ask for.";
+  if(!confirm(msg)) return;
+  const b=$("#modeBtn"); b.disabled=true;
+  await safely(async()=>{
+    const stamp=new Date().toLocaleString("sv-SE",{timeZone:"America/Chicago"}).replace(" ","T").slice(0,16);
+    let t=S.modeMd||"---\nmode: reporter\nauto_tasks_cap: 10\n---\n# Jarvis mode\n";
+    const set=(k,v)=>{ const re=new RegExp("^"+k+":.*$","m"); t=re.test(t)?t.replace(re,k+": "+v):t.replace(/^---\n/,"---\n"+k+": "+v+"\n"); };
+    set("mode",next?"manager":"reporter"); set("changed",stamp); set("changed_by","Leotus (Jarvis app toggle)");
+    await vault.write("_jarvis/brain/mode.md",t); S.modeMd=t;
+    const phrase=next?"Manager mode: ON":"Manager mode: OFF";
+    if(chatVault()) await chatSend(phrase); else await addToInbox(phrase);
+    toast(next?"Manager Mode is on. Jarvis takes it from his next check-in.":"Manager Mode is off. Back to Reporter Mode.");
+  });
+  b.disabled=false; renderChrome(); if(S.view!=="chat") render();
+}
 function renderChrome(){
+  { const mi=modeInfo(), b=$("#modeBtn"); if(b){ b.classList.toggle("on",mi.on); b.setAttribute("aria-pressed",String(mi.on)); $("#modeLbl").textContent=mi.on?`Manager · ${mi.used}/${mi.cap}`:"Manager mode"; b.title=mi.on?`Manager Mode is on: ${mi.used} of ${mi.cap} auto tasks used today. Tap to turn off.`:"Reporter Mode (default). Tap to turn on Manager Mode."; } }
   const hs=hermesStatus(); $("#hermesChip").innerHTML=`<span class="dot ${hs.dot}"></span>Hermes · ${esc(hs.text)}`;
   const lr=(S.brief||"").match(/Last round:\s*([^.(\n]+)/) || (S.brief||"").match(/^#[^\n]*\((\d{1,2}:\d{2}\s*[AP]M[^)]*)\)/m); $("#roundChip").innerHTML=`<span class="dot ${lr?"ok":"warn"}"></span>${lr?"Last round "+esc(lr[1].trim()):"No brief yet"}`;
   const needs=briefParts().needs.length; const c=$("#needCount"); c.textContent=needs; c.classList.toggle("hidden",!needs);
@@ -659,7 +691,7 @@ activity(){
   </div>`;
 },
 graph(){ return views.agents(); },
-agents(){ const strip=h=>h.replace(/^<h1>[\s\S]*?<\/p>/,""); return hiveView().replace("<h1>Agent graph</h1>","<h1>Team</h1>")+`<h2 class="sec">Agents</h2>`+strip(views._agents())+`<h2 class="sec">Tasks</h2>`+strip(views.tasks()); },
+agents(){ const strip=h=>h.replace(/^<h1>[\s\S]*?<\/p>/,""); return hiveView().replace("<h1>Agent graph</h1>","<h1>Team</h1>")+queuePanel()+`<h2 class="sec">Agents</h2>`+strip(views._agents())+`<h2 class="sec">Tasks</h2>`+strip(views.tasks()); },
 goals(){ return goalsView(); },
 chat(){ return chatView(); },
 stats(){
@@ -734,6 +766,12 @@ async function answerProposal(code){
   if (ok===false){ delete a[n]; try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
   toast(yn==="Y"?`Approved #${n}. Jarvis will dispatch it.`:`Skipped #${n}.`); if(S.view!=="chat") render();
 }
+function queuePanel(){ const mi=modeInfo(), rows=queueRows(); const live=rows.filter(r=>!/^(done|dropped)$/i.test(r.Status||""));
+  const dot=st=>({"in progress":"ok","blocked":"bad","waiting approval":"warn"})[(st||"").toLowerCase()]||"";
+  return `<h2 class="sec">${mi.on?"Manager Mode · task queue":"Task queue"}</h2><section class="panel ${mi.on?"glow":""}">
+    <div class="row" style="justify-content:space-between;margin-bottom:${live.length?"12px":"0"}"><span class="muted" style="font-size:13px">${mi.on?`Jarvis keeps agents working. Auto tasks today: ${mi.used} of ${mi.cap}.`:"Reporter Mode: Jarvis watches and reports, and starts only work you ask for."}</span>
+    <div class="row" style="gap:6px"><button class="btn small" data-say="mode status">Mode status</button><button class="btn small ${mi.on?"":"primary"}" data-mode-toggle>${mi.on?"Turn off":"Turn on Manager Mode"}</button></div></div>
+    ${live.length?`<ul class="list">${live.map(r=>`<li><span class="dot ${dot(r.Status)}"></span><span><b>${esc(r.Task||"")}</b><br><span class="muted" style="font-size:12.5px">${esc(r.Agent||"")} · ${esc(r.Status||"")}${r.Source?` · ${esc(r.Source)}`:""}${r.Result?` · ${esc(r.Result)}`:""}</span></span></li>`).join("")}</ul>`:""}</section>`; }
 function askAgent(name){ go("chat"); const t=$("#chatText"); if(t){ t.value=`Ask ${name}: `; t.focus(); } }
 function askForm(){ return `<div class="field"><textarea id="askText" placeholder="What do you need? e.g. The site's calendar page is broken" style="min-height:70px"></textarea></div>
   <div class="row"><button class="btn primary" id="askChat">Send to Jarvis</button><button class="btn" id="askNow" title="Opens Jarvis Desk with your message copied">Fix it now</button></div>
@@ -793,6 +831,7 @@ function render(){
   document.querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>askAgent(b.dataset.ask));
   document.querySelectorAll("[data-say]").forEach(b=>b.onclick=async()=>{ b.disabled=true; const ok=chatVault()?await chatSend(b.dataset.say):await safely(()=>addToInbox(b.dataset.say)); if(ok!==false) toast("Sent to Jarvis. His answer lands in Chat."); });
   on("#logCount","click",()=>{ go("chat"); const t=$("#chatText"); if(t){ t.value="My Instagram follower count today is "; t.focus(); } });
+  document.querySelectorAll("[data-mode-toggle]").forEach(b=>b.onclick=toggleMode);
   document.querySelectorAll("[data-seg]").forEach(b=>b.onclick=()=>{ S.goalTab=b.dataset.seg; render(); });
   document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{ await copyText(b.dataset.copy); toast("Copied"); });
   document.querySelectorAll("[data-eqdone]").forEach(b=>b.onchange=()=>{ const k="jarvis.eq."+todayCT(); let d=[]; try{d=JSON.parse(localStorage.getItem(k)||"[]");}catch{} b.checked?d.push(b.dataset.eqdone):d=d.filter(x=>x!==b.dataset.eqdone); try{localStorage.setItem(k,JSON.stringify(d));}catch{} b.closest(".it").classList.toggle("done",b.checked); });
@@ -813,7 +852,7 @@ function openTalk(){
     document.body.appendChild(s); }
 }
 $("#nav").addEventListener("click",e=>{ const b=e.target.closest("button[data-view]"); if (b) go(b.dataset.view); });
-$("#nowBtn").onclick=()=>fixNow(""); $("#setBtn").onclick=()=>go("settings"); $("#orb").onclick=openTalk; $("#talkBtn").onclick=openTalk; $("#drawerClose").onclick=()=>$("#drawer").classList.add("hidden");
+$("#nowBtn").onclick=()=>fixNow(""); $("#setBtn").onclick=()=>go("settings"); $("#modeBtn").onclick=toggleMode; $("#orb").onclick=openTalk; $("#talkBtn").onclick=openTalk; $("#drawerClose").onclick=()=>$("#drawer").classList.add("hidden");
 $("#refreshBtn").onclick=async()=>{ S._notes=null; VG.nodes=null; await loadAll(); toast("Up to date"); };
 if (location.hash==="#settings") S.view="settings";
 
@@ -912,6 +951,7 @@ function cmdItems(q){
     out.push({label:`Send to Jarvis for next round: “${q.trim()}”`, k:"inbox", run:()=>addToInbox(q)});
     out.push({label:`New task for Hermes: “${q.trim()}”`, k:"task", run:()=>quickTask(q)}); }
   const base=[
+    {label:"Toggle Manager Mode", k:"Mode", run:()=>toggleMode()},
     ...Object.keys(views).filter(v=>v[0]!=="_"&&v!=="graph").map(v=>({label:`Go to ${({overview:"Home",agents:"Team"})[v]||v[0].toUpperCase()+v.slice(1)}`, k:"view", run:()=>go(v)})),
     ...claudeProfiles().filter(p=>p.session).map(p=>({label:`Open chat: ${p.name}`, k:"Claude", run:()=>window.open(sessionLink(p.session),"_blank","noopener")})),
     ...(jarvisHq()?[{label:"Open chat: Jarvis HQ", k:"rounds", run:()=>window.open(sessionLink(jarvisHq()),"_blank","noopener")}]:[]),
@@ -1358,6 +1398,8 @@ const DEMO = {
 "_jarvis/data/deals.md": "# Deals\n\nUpdated: sample\n\n| Business | Stage | Amount | Next step | Last touch | Leads row |\n|---|---|---|---|---|---|\n| Bonjour Bakery | paid | $150 | Ask for a testimonial | Nov 12 | 23 |\n| Neko Coffee | yes | $200 | Send invoice | Nov 11 | 31 |\n| Kafe Krave | pitched | | Follow up Friday | Nov 10 | 12 |\n| Reunion Coffee | lead | | First message | | 8 |\n",
 "_jarvis/data/calendar.md": "# Content calendar\n\nUpdated: sample\n\n| Date | Time | Platform | Title | Status |\n|---|---|---|---|---|\n| "+new Date().toISOString().slice(0,10)+" | 12:00 PM | TikTok | Free museum days | queued |\n| "+new Date().toISOString().slice(0,10)+" | 6:30 PM | Instagram | Career fair Reel | posted |\n",
 "_jarvis/data/engage.md": "# Engagement queue\n\nUpdated: sample\n\n| Account | Link | Why | Draft comment |\n|---|---|---|---|\n| @utsa | https://instagram.com/utsa | Posts student events daily | Love seeing this. Students ask us about it every week. |\n| @visitsanantonio | https://instagram.com/visitsanantonio | Local reach | Adding this to our free-events list for students. |\n",
+"_jarvis/brain/mode.md": "---\nmode: reporter\nauto_tasks_cap: 10\n---\n# Jarvis mode\n",
+"_jarvis/queue.md": "# Task queue\n\n| # | Added | Task | Agent | Model | Source | Status | Result |\n|---|---|---|---|---|---|---|---|\n| 1 | 2026-11-14 | Draft 3 sponsor DMs for coffee shops | WiN Me Some Money | sonnet | auto | in progress | |\n| 2 | 2026-11-14 | Rank last week's Shorts by watch time | YT/TT | haiku | auto | ready | |\n",
 "_jarvis/inbox.md": "# Jarvis inbox\n\n- [ ] \n",
 "log.md": "# Log\n\n## [2026-10-28] update | Week plan (Hermes)\n## [2026-10-30] update | Outreach drafts (Claude)\n## [2026-11-01] update | Briefing (Hermes)\n## [2026-11-01] update | Social profile (Claude)\n## [2026-11-03] update | Shorts re-render (Claude)\n## [2026-11-04] update | Discord Reel held (Claude)\n## [2026-11-04] update | GroupMe swap (Claude)\n## [2026-11-05] create | Jarvis installed (Claude)\n## [2026-11-05] update | Bonjour Bakery call: Google Meet link added (Claude)\n## [2026-11-05] update | Heartbeat (Hermes)\n",
 "entities/hermes.md": "# Hermes", "entities/bonjour-bakery.md": "# Bonjour", "concepts/instagram-autopilot.md": "# IG"
