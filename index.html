@@ -527,7 +527,9 @@ async function loadAll(){
     vault.read("_jarvis/brain/memory.md"), vault.list("_jarvis/tasks")]);
   S.proposals=(await vault.read("_jarvis/proposals.md").catch(()=>"")) || "";
   [S.modeMd,S.queueMd]=await Promise.all(["brain/mode.md","queue.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
-  [S.goals,S.deals,S.calendar,S.engage]=await Promise.all(["goals.md","data/deals.md","data/calendar.md","data/engage.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
+  [S.goals,S.deals,S.engage]=await Promise.all(["goals.md","data/deals.md","data/engage.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
+  { const cal=(await vault.list("_jarvis/data").catch(()=>[])).map(f=>f.name).filter(n=>/^calendar(-[\w-]+)?\.md$/.test(n)); const split=cal.filter(n=>n!=="calendar.md");
+    const use=split.length>=2?split:cal; S.calendar=(await Promise.all(use.map(n=>vault.read("_jarvis/data/"+n).then(t=>t||"").catch(()=>"")))).join("\n\n"); }
   { const pend=new Set(pendingProposals().map(p=>p.n)); const a=answered(); let ch=false; for (const k of Object.keys(a)) if(!pend.has(k)){ delete a[k]; ch=true; } if(ch) try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
   S.briefs = briefList.filter(f=>/^\d{4}-\d{2}-\d{2}\.md$/.test(f.name)).map(f=>f.name.slice(0,10)).sort().reverse();
   if (!S.briefDate || !S.briefs.includes(S.briefDate)) S.briefDate = S.briefs[0] || null;
