@@ -434,6 +434,7 @@ kbd{border-color:var(--line2);border-radius:6px}
     <button data-view="overview" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>Home <span class="count hidden" id="needCount"></span></button>
     <button data-view="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z"/></svg>Chat <span class="count hidden" id="chatCount"></span></button>
     <button data-view="goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>Goals</button>
+    <button data-view="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>Analytics</button>
     <button data-view="agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.6"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="m10 10.2-3.6-3M14 10.2l3.6-3M10 13.8l-3.6 3M14 13.8l3.6 3"/></svg>Team</button>
     <button data-view="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h10.5A3.5 3.5 0 0 1 19 8v11.5H8.5A3.5 3.5 0 0 1 5 16V4.5Z"/><path d="M5 16a3.5 3.5 0 0 1 3.5-3.5H19"/></svg>Vault</button>
     <div class="foot" id="foot">Not connected</div>
@@ -528,6 +529,7 @@ async function loadAll(){
   S.proposals=(await vault.read("_jarvis/proposals.md").catch(()=>"")) || "";
   [S.modeMd,S.queueMd]=await Promise.all(["brain/mode.md","queue.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
   [S.goals,S.deals,S.engage]=await Promise.all(["goals.md","data/deals.md","data/engage.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
+  S.analytics=await vault.read("_jarvis/data/analytics.json").then(t=>t?JSON.parse(t):null).catch(()=>null);
   { const cal=(await vault.list("_jarvis/data").catch(()=>[])).map(f=>f.name).filter(n=>/^calendar(-[\w-]+)?\.md$/.test(n)); const split=cal.filter(n=>n!=="calendar.md");
     const use=split.length>=2?split:cal; S.calendar=(await Promise.all(use.map(n=>vault.read("_jarvis/data/"+n).then(t=>t||"").catch(()=>"")))).join("\n\n"); }
   { const pend=new Set(pendingProposals().map(p=>p.n)); const a=answered(); let ch=false; for (const k of Object.keys(a)) if(!pend.has(k)){ delete a[k]; ch=true; } if(ch) try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
@@ -695,6 +697,7 @@ activity(){
 graph(){ return views.agents(); },
 agents(){ const strip=h=>h.replace(/^<h1>[\s\S]*?<\/p>/,""); return hiveView().replace("<h1>Agent graph</h1>","<h1>Team</h1>")+queuePanel()+`<h2 class="sec">Agents</h2>`+strip(views._agents())+`<h2 class="sec">Tasks</h2>`+strip(views.tasks()); },
 goals(){ return goalsView(); },
+analytics(){ return analyticsView(); },
 chat(){ return chatView(); },
 stats(){
   if(!S._briefHist){ loadBriefHistory(); }
@@ -1056,6 +1059,30 @@ function chatWire(){
 }
 setInterval(()=>{ if(vault && S.view!=="chat") chatPoll(); }, 60000);
 
+/* ---------- analytics (Google Analytics, refreshed by Jarvis each morning) ---------- */
+function analyticsView(){
+  const a=S.analytics;
+  const head=`<div class="row" style="justify-content:space-between;margin-bottom:16px"><h1 style="margin:0">Analytics</h1><span class="muted" style="font-size:12px">${a?"Updated "+esc(a.updated||""):""}</span></div>`;
+  if(!a) return head+`<section class="panel"><h2>Website traffic</h2><p class="empty">No analytics yet. Jarvis pulls Google Analytics on his morning round and writes it to <span class="mono">_jarvis/data/analytics.json</span>.</p></section>`;
+  const kpi=(v,l)=>`<div class="meter"><div><b>${Number(v||0).toLocaleString()}</b><span>${l}</span></div></div>`;
+  const hist=(a.history||[]).slice(-60);
+  const trend=hist.length>=2
+    ? `<div class="chart">${vbars(hist.map(h=>({label:h.date+": "+h.active_users+" users",value:h.active_users,short:h.date.slice(5)})),{h:190})}</div>`
+    : `<p class="muted" style="margin:0">The day-by-day chart fills in from tomorrow. Each morning Jarvis adds one point, so it starts with today's total.</p>`;
+  const paid=(a.channels||[]).find(c=>/paid/i.test(c.name));
+  const note=paid&&paid.users>0?`<p class="muted" style="font-size:13px;margin-top:12px">${paid.users} users came from paid traffic in the last 30 days. Do you run ads? If not, check where that traffic is tagged coming from.</p>`:"";
+  return head+`
+  <div class="grid g2" style="gap:16px">
+    <section class="panel glow"><h2>Last ${esc(a.period||"30 days")}</h2>
+      <div class="meters">${kpi(a.active_users,"active users")}${kpi(a.sessions,"sessions")}${kpi(a.ai_referred_users,"from AI assistants")}</div>
+      <p class="muted" style="font-size:13px;margin:14px 0 0">Top channel: ${esc(a.top_channel||"")}</p>
+    </section>
+    <section class="panel"><h2>Where visitors come from</h2>${hbars((a.channels||[]).map(c=>({label:c.name,value:c.users})))}${note}</section>
+  </div>
+  <section class="panel" style="margin-top:16px"><h2>Active users per day</h2>${trend}</section>
+  <p class="muted" style="font-size:12px;margin-top:12px">Source: ${esc(a.source||"Google Analytics 4")}. Read-only. Nothing here changes your site.</p>`;
+}
+
 /* ---------- goals: money and audience ---------- */
 function goalData(){
   const sx=sections(S.goals||""); const key=k=>Object.keys(sx).find(x=>x.startsWith(k));
@@ -1399,6 +1426,7 @@ const DEMO = {
 "_jarvis/goals.md": "# Goals\n\n## 1. Make at least $5,000 USD by the end of 2026\n| Date | Source | Amount | Confirmed by |\n|---|---|---|---|\n| 2026-11-09 | Starting point | $0 | Leotus |\n| 2026-11-12 | Bonjour Bakery reel | $150 | Leotus |\n\n## 2. Reach about 1,000 followers\n| Date | Platform | Followers | Source |\n|---|---|---|---|\n| 2026-11-09 | Instagram | about 20 | Leotus |\n| 2026-11-12 | Instagram | 41 | Leotus |\n",
 "_jarvis/data/deals.md": "# Deals\n\nUpdated: sample\n\n| Business | Stage | Amount | Next step | Last touch | Leads row |\n|---|---|---|---|---|---|\n| Bonjour Bakery | paid | $150 | Ask for a testimonial | Nov 12 | 23 |\n| Neko Coffee | yes | $200 | Send invoice | Nov 11 | 31 |\n| Kafe Krave | pitched | | Follow up Friday | Nov 10 | 12 |\n| Reunion Coffee | lead | | First message | | 8 |\n",
 "_jarvis/data/calendar.md": "# Content calendar\n\nUpdated: sample\n\n| Date | Time | Platform | Title | Status |\n|---|---|---|---|---|\n| "+new Date().toISOString().slice(0,10)+" | 12:00 PM | TikTok | Free museum days | queued |\n| "+new Date().toISOString().slice(0,10)+" | 6:30 PM | Instagram | Career fair Reel | posted |\n",
+"_jarvis/data/analytics.json": "{\"updated\":\"2026-11-17\",\"source\":\"sample\",\"period\":\"30d\",\"active_users\":184,\"sessions\":258,\"ai_referred_users\":1,\"top_channel\":\"Direct\",\"channels\":[{\"name\":\"Direct\",\"users\":123},{\"name\":\"Other\",\"users\":44},{\"name\":\"Organic search\",\"users\":11},{\"name\":\"Paid\",\"users\":5},{\"name\":\"LLM referrers\",\"users\":1}],\"history\":[]}",
 "_jarvis/data/engage.md": "# Engagement queue\n\nUpdated: sample\n\n| Account | Link | Why | Draft comment |\n|---|---|---|---|\n| @utsa | https://instagram.com/utsa | Posts student events daily | Love seeing this. Students ask us about it every week. |\n| @visitsanantonio | https://instagram.com/visitsanantonio | Local reach | Adding this to our free-events list for students. |\n",
 "_jarvis/brain/mode.md": "---\nmode: reporter\nauto_tasks_cap: 10\n---\n# Jarvis mode\n",
 "_jarvis/queue.md": "# Task queue\n\n| # | Added | Task | Agent | Model | Source | Status | Result |\n|---|---|---|---|---|---|---|---|\n| 1 | 2026-11-14 | Draft 3 sponsor DMs for coffee shops | WiN Me Some Money | sonnet | auto | in progress | |\n| 2 | 2026-11-14 | Rank last week's Shorts by watch time | YT/TT | haiku | auto | ready | |\n",
