@@ -378,6 +378,44 @@ kbd{border-color:var(--line2);border-radius:6px}
 .modechip.on .sw{background:var(--amber)}.modechip.on .sw::after{left:14px}
 .modechip:disabled{opacity:.5;cursor:default}
 @media (max-width:900px){.top #modeBtn{order:4;font-size:11px}}
+
+/* ===== HUD look (Nov 17): cyan instrument panels, scan lines, corner brackets, reactor glow ===== */
+.app::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,rgba(62,230,255,.035) 0 1px,transparent 1px 4px)}
+.app>*{position:relative;z-index:1}
+.brand{font-family:var(--mono);text-transform:uppercase;letter-spacing:.32em;font-size:13px;color:var(--cyan);text-shadow:0 0 14px rgba(62,230,255,.55)}
+.brand::after{content:"// ONLINE";font-size:10px;letter-spacing:.2em;color:var(--cyan-dim);margin-left:4px}
+h2{font-family:var(--mono);color:var(--cyan);letter-spacing:.2em;text-shadow:0 0 10px rgba(62,230,255,.35)}
+.panel{border:1px solid rgba(62,230,255,.16);box-shadow:inset 0 0 40px rgba(62,230,255,.035),0 0 0 1px rgba(62,230,255,.05)}
+.panel::after{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;opacity:.9;
+  background:
+    linear-gradient(var(--cyan),var(--cyan)) top left/22px 2px no-repeat,
+    linear-gradient(var(--cyan),var(--cyan)) top left/2px 22px no-repeat,
+    linear-gradient(var(--cyan),var(--cyan)) top right/22px 2px no-repeat,
+    linear-gradient(var(--cyan),var(--cyan)) top right/2px 22px no-repeat,
+    linear-gradient(var(--cyan),var(--cyan)) bottom left/22px 2px no-repeat,
+    linear-gradient(var(--cyan),var(--cyan)) bottom left/2px 22px no-repeat,
+    linear-gradient(var(--cyan),var(--cyan)) bottom right/22px 2px no-repeat,
+    linear-gradient(var(--cyan),var(--cyan)) bottom right/2px 22px no-repeat;
+  filter:drop-shadow(0 0 4px rgba(62,230,255,.6))}
+.panel.glow::after{background:
+    linear-gradient(var(--amber),var(--amber)) top left/22px 2px no-repeat,
+    linear-gradient(var(--amber),var(--amber)) top left/2px 22px no-repeat,
+    linear-gradient(var(--amber),var(--amber)) top right/22px 2px no-repeat,
+    linear-gradient(var(--amber),var(--amber)) top right/2px 22px no-repeat,
+    linear-gradient(var(--amber),var(--amber)) bottom left/22px 2px no-repeat,
+    linear-gradient(var(--amber),var(--amber)) bottom left/2px 22px no-repeat,
+    linear-gradient(var(--amber),var(--amber)) bottom right/22px 2px no-repeat,
+    linear-gradient(var(--amber),var(--amber)) bottom right/2px 22px no-repeat;
+  filter:drop-shadow(0 0 4px rgba(255,181,71,.6))}
+.orb{box-shadow:0 0 0 1px rgba(62,230,255,.4),0 0 24px rgba(62,230,255,.55),inset 0 0 14px rgba(62,230,255,.6)}
+.nav button.on{box-shadow:inset 0 0 0 1px rgba(62,230,255,.5),0 0 18px rgba(62,230,255,.25)}
+.nav button.on svg{filter:drop-shadow(0 0 6px var(--cyan))}
+.num,.bigstat,.meter b{font-family:var(--mono);text-shadow:0 0 14px rgba(62,230,255,.35)}
+@keyframes hudScan{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+.app::after{content:"";position:fixed;left:0;right:0;top:0;height:120px;pointer-events:none;z-index:0;
+  background:linear-gradient(180deg,transparent,rgba(62,230,255,.06),transparent);animation:hudScan 7s linear infinite}
+@media (prefers-reduced-motion:reduce){.app::after{animation:none;display:none}}
 </style>
 </head>
 <body>
