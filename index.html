@@ -416,6 +416,15 @@ h2{font-family:var(--mono);color:var(--cyan);letter-spacing:.2em;text-shadow:0 0
 .app::after{content:"";position:fixed;left:0;right:0;top:0;height:120px;pointer-events:none;z-index:0;
   background:linear-gradient(180deg,transparent,rgba(62,230,255,.06),transparent);animation:hudScan 7s linear infinite}
 @media (prefers-reduced-motion:reduce){.app::after{animation:none;display:none}}
+
+.t-score{grid-column:span 12}
+.scgrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:12px}
+.sc{border:1px solid rgba(62,230,255,.14);border-radius:14px;padding:12px;background:rgba(62,230,255,.03);min-width:0}
+.sc b{display:block;font:600 24px/1.1 var(--mono);color:var(--text);text-shadow:0 0 14px rgba(62,230,255,.35)}
+.sc span{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.sc i{display:block;font-style:normal;font-size:11px;color:var(--dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl li{display:flex;gap:12px}.tl .mono{min-width:44px;color:var(--cyan)}
+@media (max-width:900px){.scgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -568,6 +577,8 @@ async function loadAll(){
   [S.modeMd,S.queueMd]=await Promise.all(["brain/mode.md","queue.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
   [S.goals,S.deals,S.engage]=await Promise.all(["goals.md","data/deals.md","data/engage.md"].map(f=>vault.read("_jarvis/"+f).then(t=>t||"").catch(()=>"")));
   S.analytics=await vault.read("_jarvis/data/analytics.json").then(t=>t?JSON.parse(t):null).catch(()=>null);
+  [S.social,S.leadsWeek]=await Promise.all(["social.json","leads-week.json"].map(f=>vault.read("_jarvis/data/"+f).then(t=>t?JSON.parse(t):null).catch(()=>null)));
+  S.roundLog=(await vault.read("_jarvis/brain/round-log.md").catch(()=>""))||"";
   { const cal=(await vault.list("_jarvis/data").catch(()=>[])).map(f=>f.name).filter(n=>/^calendar(-[\w-]+)?\.md$/.test(n)); const split=cal.filter(n=>n!=="calendar.md");
     const use=split.length>=2?split:cal; S.calendar=(await Promise.all(use.map(n=>vault.read("_jarvis/data/"+n).then(t=>t||"").catch(()=>"")))).join("\n\n"); }
   { const pend=new Set(pendingProposals().map(p=>p.n)); const a=answered(); let ch=false; for (const k of Object.keys(a)) if(!pend.has(k)){ delete a[k]; ch=true; } if(ch) try{ localStorage.setItem("jarvis.answered",JSON.stringify(a)); }catch{} }
@@ -652,11 +663,12 @@ overview(){
   return `<div class="bento">
     <section class="panel t-hero"><h1>Good ${partOfDay()}, Leotus.</h1><p class="sub" style="margin:0">${top?mdInline(top).slice(0,260):(S.brief?"Here's where things stand.":"No brief yet today. Jarvis writes one at 7 AM.")}</p>
       <div class="meters">${ring(g.money/5000,"of $5,000 earned","$"+g.money.toLocaleString())}${ring(g.followers/1000,"of 1,000 followers",g.followers.toLocaleString())}${ring(1-g.days/52,"days left",g.days)}</div>
-      <div class="row" style="margin-top:20px"><button class="btn small" data-brief-me>Brief me out loud</button><button class="btn small" data-view-go="brief">Full brief</button><button class="btn small" data-view-go="stats">Stats</button><button class="btn small" data-view-go="activity">Activity</button></div></section>
+      <div class="row" style="margin-top:20px"><button class="btn small primary" data-brief-me>Morning briefing</button><button class="btn small" data-view-go="brief">Full brief</button><button class="btn small" data-view-go="stats">Stats</button><button class="btn small" data-view-go="activity">Activity</button></div></section>
     <section class="panel t-team"><h2 style="align-self:flex-start">Team</h2>${reactor()}<div class="legend">${teamStatus().map(a=>`<div class="it"><span class="sw" style="background:${statusColor(a.dot)}"></span><b style="font-weight:600">${esc(a.name)}</b><span class="muted" style="margin-left:auto;text-align:right;font-size:12px">${esc(a.state).slice(0,40)}</span></div>`).join("")}</div></section>
     <section class="panel t-focus"><h2>Focus today</h2>${focus.length?`<ul class="list focus">${focus.slice(0,3).map(f=>`<li><span class="k">${esc(f.n)}</span><span class="md">${mdInline(f.text)}</span></li>`).join("")}</ul>`:'<p class="empty">Jarvis picks your top 3 in the morning plan.</p>'}</section>
     <section class="panel t-ask"><h2>Ask Jarvis</h2><textarea id="askText" placeholder="What do you need?" style="min-height:74px"></textarea><div class="row" style="margin-top:10px"><button class="btn primary" id="askChat">Send</button><button class="btn" id="askNow" title="Goes to Jarvis Desk right away">Send as urgent</button></div></section>
     ${pc?`<div class="t-ok">${pc}</div>`:""}
+    ${scorecard()}
     <section class="panel t-needs"><h2>Needs you · ${b.needs.length}</h2>${needs}</section>
     <section class="panel t-mov"><h2>Moving</h2><div class="md">${b.moving?md(b.moving):'<p class="empty">Nothing listed</p>'}</div></section>
     <section class="panel t-done"><h2>Done today</h2><div class="md">${b.done?md(b.done):'<p class="empty">Nothing yet</p>'}</div></section>
@@ -733,7 +745,7 @@ activity(){
   </div>`;
 },
 graph(){ return views.agents(); },
-agents(){ const strip=h=>h.replace(/^<h1>[\s\S]*?<\/p>/,""); return hiveView().replace("<h1>Agent graph</h1>","<h1>Team</h1>")+queuePanel()+`<h2 class="sec">Agents</h2>`+strip(views._agents())+`<h2 class="sec">Tasks</h2>`+strip(views.tasks()); },
+agents(){ const strip=h=>h.replace(/^<h1>[\s\S]*?<\/p>/,""); return hiveView().replace("<h1>Agent graph</h1>","<h1>Team</h1>")+timeline()+queuePanel()+`<h2 class="sec">Agents</h2>`+strip(views._agents())+`<h2 class="sec">Tasks</h2>`+strip(views.tasks()); },
 goals(){ return goalsView(); },
 analytics(){ return analyticsView(); },
 chat(){ return chatView(); },
@@ -875,6 +887,7 @@ function render(){
   document.querySelectorAll("[data-say]").forEach(b=>b.onclick=async()=>{ b.disabled=true; const ok=chatVault()?await chatSend(b.dataset.say):await safely(()=>addToInbox(b.dataset.say)); if(ok!==false) toast("Sent to Jarvis. His answer lands in Chat."); });
   on("#logCount","click",()=>{ go("chat"); const t=$("#chatText"); if(t){ t.value="My Instagram follower count today is "; t.focus(); } });
   document.querySelectorAll("[data-mode-toggle]").forEach(b=>b.onclick=toggleMode);
+  on("#logSocial","click",()=>{ go("chat"); const t=$("#chatText"); if(t){ t.value="Followers today: Instagram , TikTok , YouTube "; t.focus(); } });
   document.querySelectorAll("[data-seg]").forEach(b=>b.onclick=()=>{ S.goalTab=b.dataset.seg; render(); });
   document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{ await copyText(b.dataset.copy); toast("Copied"); });
   document.querySelectorAll("[data-eqdone]").forEach(b=>b.onchange=()=>{ const k="jarvis.eq."+todayCT(); let d=[]; try{d=JSON.parse(localStorage.getItem(k)||"[]");}catch{} b.checked?d.push(b.dataset.eqdone):d=d.filter(x=>x!==b.dataset.eqdone); try{localStorage.setItem(k,JSON.stringify(d));}catch{} b.closest(".it").classList.toggle("done",b.checked); });
@@ -912,7 +925,9 @@ const SFX={ ctx:null,
   tone(freq,dur,type="sine",vol=.05,when=0,slide=0){ if(!on1("sounds")) return; const c=this.ac(); if(!c) return; const t=c.currentTime+when; const o=c.createOscillator(), g=c.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); if(slide) o.frequency.exponentialRampToValueAtTime(freq*slide,t+dur); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+dur); o.connect(g).connect(c.destination); o.start(t); o.stop(t+dur+.02); },
   click(){ this.tone(1800,.04,"sine",.025); },
   alert(){ this.tone(880,.18,"sine",.05); this.tone(1320,.25,"sine",.04,.12); },
-  boot(){ this.tone(110,1.2,"sawtooth",.025,0,4); this.tone(440,.3,"sine",.04,.9); this.tone(660,.5,"sine",.04,1.05); }
+  boot(){ this.tone(110,1.2,"sawtooth",.025,0,4); this.tone(440,.3,"sine",.04,.9); this.tone(660,.5,"sine",.04,1.05); },
+  reply(){ this.tone(660,.12,"sine",.045); this.tone(990,.18,"sine",.04,.1); this.tone(1320,.22,"triangle",.025,.2); },
+  tick(){ this.tone(2400,.025,"square",.012); }
 };
 document.addEventListener("click",e=>{ if (e.target.closest("button,a.btn,.seg")) SFX.click(); },true);
 
@@ -948,10 +963,16 @@ function plain(html){ const d=document.createElement("div"); d.innerHTML=html; r
 function pickVoice(){ const vs=speechSynthesis.getVoices(); if(settings.voice){ const v=vs.find(v=>v.name===settings.voice); if(v) return v; }
   return vs.find(v=>/en-GB/i.test(v.lang)&&/ryan|george|thomas|daniel|brian|male/i.test(v.name)) || vs.find(v=>/en-GB/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang)) || null; }
 function speak(text){ if(!("speechSynthesis" in window)) return toast("This browser can't speak"); speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); const v=pickVoice(); if(v){ u.voice=v; u.lang=v.lang; } u.rate=1.02; u.pitch=.95; speechSynthesis.speak(u); }
-function greetingText(){ const b=briefParts(); const n=b.needs.length; const hs=hermesStatus();
+function greetingText(){ const b=briefParts(); const n=b.needs.length; const hs=hermesStatus(); const g=goalData();
   let t=`Good ${partOfDay()}, Leotus. `;
-  t+= n ? `You have ${n} ${n===1?"thing":"things"} that need you. First: ${plain(mdInline(b.needs[0].text)).slice(0,220)}. ` : "Nothing needs you right now. ";
-  t+= `Hermes is ${hs.dot==="ok"?"online":"offline"}.`; return t; }
+  t+=`You're at $${g.money.toLocaleString()} of five thousand dollars, and ${g.followers.toLocaleString()} of one thousand followers, with ${g.days} days to go. `;
+  const focus=numbered(sections(S.brief||"")["Focus today"]||"").slice(0,3);
+  if(focus.length) t+=`Your focus today: `+focus.map((f,i)=>(i===focus.length-1&&i>0?"and ":"")+plain(mdInline(f.text)).replace(/[.]$/,"").slice(0,160)).join(". ")+". ";
+  t+= n ? `${n} ${n===1?"item needs":"items need"} you. First: ${plain(mdInline(b.needs[0].text)).slice(0,200)}. ` : "Nothing needs you right now. ";
+  const pend=pendingProposals().length; if(pend) t+=`${pend} ${pend===1?"proposal is":"proposals are"} waiting for your OK. `;
+  const lw=S.leadsWeek; if(lw&&lw.replies&&lw.replies.length) t+=`${lw.replies.length} ${lw.replies.length===1?"lead has":"leads have"} replied this week. `;
+  if(S.analytics) t+=`The website had ${S.analytics.active_users} visitors in the last 30 days. `;
+  t+=`Hermes is ${hs.dot==="ok"?"online":"offline"}. That's all for now.`; return t; }
 function briefMe(){ speak(greetingText()); }
 
 /* ---------- boot sequence ---------- */
@@ -961,7 +982,7 @@ async function runBoot(){
   const el=$("#boot"); if(!on1("bootAnim")){ if(greetingDue()) showEngage(true); return; }
   el.classList.remove("hidden","out"); const lines=$("#bootLines"), bar=$("#bootBar");
   const fast=matchMedia("(prefers-reduced-motion: reduce)").matches; const wait=ms=>new Promise(r=>setTimeout(r,fast?0:ms));
-  const items=[["JARVIS · systems check",""],["Vault linked","ok"],[S.briefDate?`Brief loaded (${S.briefDate})`:"No brief yet", S.briefDate?"ok":"warn"]].concat(teamStatus().map(a=>[`${a.name.padEnd(18,".")} ${a.state}`, a.dot||"warn"])).concat([[`Needs you: ${briefParts().needs.length}`, briefParts().needs.length?"warn":"ok"]]);
+  const items=[["J.A.R.V.I.S. · systems check",""],["Vault linked","ok"],["Goals: $"+goalData().money.toLocaleString()+" of $5,000 · "+goalData().followers+" of 1,000 followers","ok"],[S.analytics?`Website: ${S.analytics.active_users} visitors (30 days)`:"Website analytics not loaded", S.analytics?"ok":"warn"],[`Waiting for your OK: ${pendingProposals().length}`, pendingProposals().length?"warn":"ok"],[S.briefDate?`Brief loaded (${S.briefDate})`:"No brief yet", S.briefDate?"ok":"warn"]].concat(teamStatus().map(a=>[`${a.name.padEnd(18,".")} ${a.state}`, a.dot||"warn"])).concat([[`Needs you: ${briefParts().needs.length}`, briefParts().needs.length?"warn":"ok"]]);
   lines.innerHTML=""; let skip=false; el.onclick=e=>{ if(!e.target.closest("button")) skip=true; };
   for(let i=0;i<items.length;i++){ const [txt,cls]=items[i]; const d=document.createElement("div"); d.innerHTML=`<span class="${cls}">${cls==="ok"?"✓":cls==="bad"?"✗":cls==="warn"?"!":"›"}</span> ${esc(txt)}`; lines.appendChild(d); bar.style.width=((i+1)/items.length*100)+"%"; if(!skip) await wait(i===0?400:230); }
   if (greetingDue()) showEngage(false); else { await wait(500); el.classList.add("out"); setTimeout(()=>el.classList.add("hidden"),500); }
@@ -1000,7 +1021,7 @@ function cmdItems(q){
     ...(jarvisHq()?[{label:"Open chat: Jarvis HQ", k:"rounds", run:()=>window.open(sessionLink(jarvisHq()),"_blank","noopener")}]:[]),
     ...(jarvisDesk()?[{label:"Open chat: Jarvis Desk", k:"live", run:()=>fixNow("")}]:[]),
     {label:"Talk to Jarvis (voice)", k:"voice", run:openTalk},
-    {label:"Brief me out loud", k:"voice", run:briefMe},
+    {label:"Morning briefing (spoken)", k:"voice", run:briefMe},
     {label:"Open vault in Obsidian", k:"Obsidian", run:()=>location.href=`obsidian://open?vault=${VAULT_NAME}`},
     {label:"Open Telegram", k:"Telegram", run:()=>$("#tgBtn").click()},
     {label:"Refresh from vault", k:"", run:()=>$("#refreshBtn").click()},
@@ -1047,7 +1068,7 @@ async function chatPoll(){
     const lastMine=[...CHAT.order].reverse().find(p=>CHAT.msgs[p].from==="leotus");
     CHAT.waiting=!!lastMine && !answered.has(lastMine);
     const lastJ=[...CHAT.order].reverse().find(p=>CHAT.msgs[p].from==="jarvis")||null;
-    if (CHAT.lastJarvis && lastJ && lastJ!==CHAT.lastJarvis && S.view==="chat") SFX.alert();
+    if (CHAT.lastJarvis && lastJ && lastJ!==CHAT.lastJarvis && document.visibilityState==="visible") SFX.reply();
     if (lastJ && lastJ!==CHAT.lastJarvis && CHAT.lastJarvis && document.visibilityState!=="visible") notify("Jarvis replied", plain(md(CHAT.msgs[lastJ].body)).slice(0,120));
     let seen=""; try{ seen=localStorage.getItem("jarvis.chatSeen")||""; }catch{}
     const unread=CHAT.order.filter(p=>CHAT.msgs[p].from==="jarvis" && p>seen).length;
@@ -1098,6 +1119,13 @@ function chatWire(){
 setInterval(()=>{ if(vault && S.view!=="chat") chatPoll(); }, 60000);
 
 /* ---------- analytics (Google Analytics, refreshed by Jarvis each morning) ---------- */
+function socialPanel(){
+  const so=S.social; const ps=(so&&so.platforms)||[];
+  const row=p=>`<div class="sc"><b>${p.followers==null?"–":Number(p.followers).toLocaleString()}</b><span>${esc(p.name)}</span><i>${p.date?esc(p.date):"not logged yet"}</i></div>`;
+  return `<section class="panel" style="margin-top:16px"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Social followers</h2><button class="btn small" id="logSocial">Log today's counts</button></div>
+    <div class="scgrid" style="margin-top:12px">${ps.length?ps.map(row).join(""):'<p class="empty">No counts yet.</p>'}</div>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Goal: 1,000 on at least one platform by Dec 31. Counts come from you or the YT/TT agent; Jarvis asks every Sunday.</p></section>`;
+}
 function analyticsView(){
   const a=S.analytics;
   const head=`<div class="row" style="justify-content:space-between;margin-bottom:16px"><h1 style="margin:0">Analytics</h1><span class="muted" style="font-size:12px">${a?"Updated "+esc(a.updated||""):""}</span></div>`;
@@ -1118,7 +1146,39 @@ function analyticsView(){
     <section class="panel"><h2>Where visitors come from</h2>${hbars((a.channels||[]).map(c=>({label:c.name,value:c.users})))}${note}</section>
   </div>
   <section class="panel" style="margin-top:16px"><h2>Active users per day</h2>${trend}</section>
+  ${socialPanel()}
   <p class="muted" style="font-size:12px;margin-top:12px">Source: ${esc(a.source||"Google Analytics 4")}. Read-only. Nothing here changes your site.</p>`;
+}
+
+/* ---------- weekly scorecard (Monday to today, Central) ---------- */
+function weekStart(){ const d=new Date(todayCT()+"T12:00:00"); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.toISOString().slice(0,10); }
+function scorecard(){
+  const ws=weekStart(), g=goalData(), sx=sections(S.goals||""); const key=k=>Object.keys(sx).find(x=>x.startsWith(k));
+  const earned=table(sx[key("1.")]||"").filter(r=>(r.Date||"")>=ws).reduce((a,r)=>a+(parseFloat((r.Amount||"").replace(/[^0-9.]/g,""))||0),0);
+  const before=[...g.fr].filter(r=>r.date<ws).pop(), now=g.fr[g.fr.length-1];
+  const fGain=(now&&before&&now.date>=ws)?now.n-before.n:null;
+  const cal=table(S.calendar||"").filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.Date||"")&&r.Date>=ws&&r.Date<=todayCT());
+  const posted=cal.filter(r=>/posted/i.test(r.Status||"")).length;
+  const lw=S.leadsWeek&&S.leadsWeek.week_start===ws?S.leadsWeek:null;
+  const cell=(v,l,sub)=>`<div class="sc"><b>${v}</b><span>${l}</span>${sub?`<i>${sub}</i>`:""}</div>`;
+  return `<section class="panel t-score"><div class="row" style="justify-content:space-between"><h2 style="margin:0">This week</h2><span class="muted" style="font-size:12px">since Mon ${ws.slice(5)}</span></div>
+    <div class="scgrid">
+      ${cell("$"+earned.toLocaleString(),"earned",`pace: $675 a week`)}
+      ${cell(fGain===null?"–":(fGain>=0?"+":"")+fGain,"followers",fGain===null?"log a count to track":"pace: +132 a week")}
+      ${cell(posted,"posts published",`${cal.length} planned`)}
+      ${cell(lw?lw.contacted||0:"–","leads contacted",lw?"":"from the reply watch")}
+      ${cell(lw?(lw.replies||[]).length:"–","replies",lw&&(lw.replies||[]).length?esc((lw.replies[lw.replies.length-1].business||"")):"")}
+      ${cell(S.analytics?S.analytics.active_users:"–","site visitors",S.analytics?"last 30 days":"")}
+    </div></section>`;
+}
+
+/* ---------- today's activity timeline ---------- */
+function timeline(){
+  const t=todayCT(); const items=[];
+  for(const m of (S.roundLog||"").matchAll(/^- (\d{4}-\d{2}-\d{2}) (\d{1,2}:\d{2}) ?C?T?:?\s*(?:\(([^)]+)\))?:?\s*(.*)$/gm)) if(m[1]===t) items.push({time:m[2],who:m[3]||"Jarvis",text:m[4]});
+  for(const m of (S.log||"").matchAll(/^## \[(\d{4}-\d{2}-\d{2})\]\s*([^|\n]*)\|\s*(.*)$/gm)) if(m[1]===t){ const w=(m[3].match(/\((Claude|Hermes|Jarvis[^)]*|Leotus)\)\s*$/i)||[])[1]||"Team"; items.push({time:"",who:w,text:m[2].trim()+": "+m[3].replace(/\s*\([^)]*\)\s*$/,"")}); }
+  items.sort((a,b)=>(b.time||"").localeCompare(a.time||""));
+  return `<h2 class="sec">Today</h2><section class="panel">${items.length?`<ul class="list tl">${items.slice(0,25).map(i=>`<li><span class="mono">${esc(i.time||"·")}</span><span><span class="tag">${esc(i.who)}</span> ${esc(i.text.slice(0,240))}</span></li>`).join("")}</ul>`:'<p class="empty">Nothing logged yet today.</p>'}</section>`;
 }
 
 /* ---------- goals: money and audience ---------- */
@@ -1465,6 +1525,7 @@ const DEMO = {
 "_jarvis/data/deals.md": "# Deals\n\nUpdated: sample\n\n| Business | Stage | Amount | Next step | Last touch | Leads row |\n|---|---|---|---|---|---|\n| Bonjour Bakery | paid | $150 | Ask for a testimonial | Nov 12 | 23 |\n| Neko Coffee | yes | $200 | Send invoice | Nov 11 | 31 |\n| Kafe Krave | pitched | | Follow up Friday | Nov 10 | 12 |\n| Reunion Coffee | lead | | First message | | 8 |\n",
 "_jarvis/data/calendar.md": "# Content calendar\n\nUpdated: sample\n\n| Date | Time | Platform | Title | Status |\n|---|---|---|---|---|\n| "+new Date().toISOString().slice(0,10)+" | 12:00 PM | TikTok | Free museum days | queued |\n| "+new Date().toISOString().slice(0,10)+" | 6:30 PM | Instagram | Career fair Reel | posted |\n",
 "_jarvis/data/analytics.json": "{\"updated\":\"2026-11-17\",\"source\":\"sample\",\"period\":\"30d\",\"active_users\":184,\"sessions\":258,\"ai_referred_users\":1,\"top_channel\":\"Direct\",\"channels\":[{\"name\":\"Direct\",\"users\":123},{\"name\":\"Other\",\"users\":44},{\"name\":\"Organic search\",\"users\":11},{\"name\":\"Paid\",\"users\":5},{\"name\":\"LLM referrers\",\"users\":1}],\"history\":[]}",
+"_jarvis/data/social.json": "{\"platforms\":[{\"name\":\"Instagram\",\"followers\":41,\"date\":\"2026-11-12\"},{\"name\":\"TikTok\",\"followers\":null,\"date\":null}]}",
 "_jarvis/data/engage.md": "# Engagement queue\n\nUpdated: sample\n\n| Account | Link | Why | Draft comment |\n|---|---|---|---|\n| @utsa | https://instagram.com/utsa | Posts student events daily | Love seeing this. Students ask us about it every week. |\n| @visitsanantonio | https://instagram.com/visitsanantonio | Local reach | Adding this to our free-events list for students. |\n",
 "_jarvis/brain/mode.md": "---\nmode: reporter\nauto_tasks_cap: 10\n---\n# Jarvis mode\n",
 "_jarvis/queue.md": "# Task queue\n\n| # | Added | Task | Agent | Model | Source | Status | Result |\n|---|---|---|---|---|---|---|---|\n| 1 | 2026-11-14 | Draft 3 sponsor DMs for coffee shops | WiN Me Some Money | sonnet | auto | in progress | |\n| 2 | 2026-11-14 | Rank last week's Shorts by watch time | YT/TT | haiku | auto | ready | |\n",
