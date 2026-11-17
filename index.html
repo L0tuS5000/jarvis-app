@@ -1121,7 +1121,7 @@ setInterval(()=>{ if(vault && S.view!=="chat") chatPoll(); }, 60000);
 /* ---------- analytics (Google Analytics, refreshed by Jarvis each morning) ---------- */
 function socialPanel(){
   const so=S.social; const ps=(so&&so.platforms)||[];
-  const row=p=>`<div class="sc"><b>${p.followers==null?"–":Number(p.followers).toLocaleString()}</b><span>${esc(p.name)}</span><i>${p.date?esc(p.date):"not logged yet"}</i></div>`;
+  const row=p=>`<div class="sc"><b>${p.followers==null?"–":Number(p.followers).toLocaleString()}</b><span>${esc(p.name)}</span><i>${p.date?esc(p.date)+(/auto/i.test(p.source||"")?" · auto":" · manual"):"manual · not tracked yet"}</i></div>`;
   return `<section class="panel" style="margin-top:16px"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Social followers</h2><button class="btn small" id="logSocial">Log today's counts</button></div>
     <div class="scgrid" style="margin-top:12px">${ps.length?ps.map(row).join(""):'<p class="empty">No counts yet.</p>'}</div>
     <p class="muted" style="font-size:12px;margin:12px 0 0">Goal: 1,000 on at least one platform by Dec 31. Counts come from you or the YT/TT agent; Jarvis asks every Sunday.</p></section>`;
@@ -1164,7 +1164,7 @@ function scorecard(){
   return `<section class="panel t-score"><div class="row" style="justify-content:space-between"><h2 style="margin:0">This week</h2><span class="muted" style="font-size:12px">since Mon ${ws.slice(5)}</span></div>
     <div class="scgrid">
       ${cell("$"+earned.toLocaleString(),"earned",`pace: $675 a week`)}
-      ${cell(fGain===null?"–":(fGain>=0?"+":"")+fGain,"followers",fGain===null?"log a count to track":"pace: +132 a week")}
+      ${fGain===null?cell(now?now.n:"–","followers",now?`total · ${now.date.slice(5)}`:"not logged yet"):cell((fGain>=0?"+":"")+fGain,"followers","pace: +132 a week")}
       ${cell(posted,"posts published",`${cal.length} planned`)}
       ${cell(lw?lw.contacted||0:"–","leads contacted",lw?"":"from the reply watch")}
       ${cell(lw?(lw.replies||[]).length:"–","replies",lw&&(lw.replies||[]).length?esc((lw.replies[lw.replies.length-1].business||"")):"")}
