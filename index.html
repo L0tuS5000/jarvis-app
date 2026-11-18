@@ -812,7 +812,7 @@ function proposalCard(compact=false){
   const a=answered(); const goals={"1":"Money","2":"Followers","3":"Automation"};
   const rows=items.map(p=>{ const done=a[p.n]; return `<div class="need" data-prop="${p.n}"><div class="n">#${esc(p.n)}</div><div class="t"><div>${mdInline(p.text)}</div>
       <div class="row" style="margin-top:8px;gap:8px"><span class="tag">${esc(goals[p.goal]||"Goal "+p.goal)}</span><span class="tag">${esc(p.bee)}</span><span style="flex:1"></span>
-      ${done?`<span class="muted" style="font-size:12px">${done==="Y"?"Approved":"Skipped"}. Sent to Jarvis.</span>`:`<button class="btn small primary" data-yn="Y ${p.n}">Approve</button><button class="btn small" data-yn="N ${p.n}">Skip</button>`}</div></div></div>`; }).join("");
+      ${/\[gated\]/i.test(p.text)?`<span class="muted" style="font-size:12px">Gated: approve or deny with the buttons on your Jarvis Local bot (Telegram).</span>`:done?`<span class="muted" style="font-size:12px">${done==="Y"?"Approved":"Skipped"}. Sent to Jarvis.</span>`:`<button class="btn small primary" data-yn="Y ${p.n}">Approve</button><button class="btn small" data-yn="N ${p.n}">Skip</button>`}</div></div></div>`; }).join("");
   return `<section class="panel glow" style="${compact?"margin-bottom:10px":""}"><h2>Waiting for your OK · ${items.length}</h2>${rows}</section>`;
 }
 async function answerProposal(code){
