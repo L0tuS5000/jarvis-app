@@ -377,6 +377,8 @@ kbd{border-color:var(--line2);border-radius:6px}
 .modechip.on{color:var(--text);border-color:color-mix(in srgb,var(--amber) 55%,transparent);background:color-mix(in srgb,var(--amber) 12%,transparent)}
 .modechip.on .sw{background:var(--amber)}.modechip.on .sw::after{left:14px}
 .modechip:disabled{opacity:.5;cursor:default}
+.askbox{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px;background:#0008;backdrop-filter:blur(4px)}
+.askcard{max-width:420px;width:100%;background:#0f2238;border:1px solid var(--line2);border-radius:14px;padding:18px;box-shadow:0 20px 50px #000c;white-space:pre-line;line-height:1.45}
 @media (max-width:900px){.top #modeBtn{order:4;font-size:11px}}
 
 /* ===== HUD look (Nov 17): cyan instrument panels, scan lines, corner brackets, reactor glow ===== */
@@ -508,7 +510,13 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const settings = (() => { try { return JSON.parse(localStorage.getItem("jarvis.settings") || "{}"); } catch { return {}; } })();
 const saveSettings = () => { try { localStorage.setItem("jarvis.settings", JSON.stringify(settings)); } catch {} };
-function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2600); }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),Math.max(2600,msg.length*60)); }
+/* In-app yes/no box: native confirm() is blocked or silently "No" in some phone web views (Telegram, home-screen apps). */
+function askConfirm(msg, yes="Yes", no="Cancel"){ return new Promise(res=>{ const o=document.createElement("div"); o.className="askbox";
+  o.innerHTML=`<div class="askcard" role="dialog" aria-modal="true"><p></p><div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px"><button class="btn" data-a="0"></button><button class="btn primary" data-a="1"></button></div></div>`;
+  o.querySelector("p").textContent=msg; o.querySelector('[data-a="0"]').textContent=no; o.querySelector('[data-a="1"]').textContent=yes;
+  const done=v=>{ o.remove(); res(v); }; o.onclick=e=>{ if(e.target===o) done(false); const a=e.target.closest("[data-a]"); if(a) done(a.dataset.a==="1"); };
+  document.body.appendChild(o); o.querySelector('[data-a="1"]').focus(); }); }
 const JOB_REPO = "L0tuS5000/Job-Market-Research";
 const jobVaultName = () => { try{ return localStorage.getItem("jarvis.jobVaultName")||"Job-Market-Research"; }catch{ return "Job-Market-Research"; } };
 const curVaultName = () => S.vaultSel==="job" ? jobVaultName() : VAULT_NAME;
@@ -553,7 +561,7 @@ class GitHubVault {
     const bytes=new TextEncoder().encode(text); let bin=""; bytes.forEach(b=>bin+=String.fromCharCode(b));
     const r=await this.api(path,{method:"PUT", headers:{Accept:"application/vnd.github+json","Content-Type":"application/json"},
       body:JSON.stringify({message:`jarvis app: update ${path}`, content:btoa(bin), branch:"main", ...(sha?{sha}:{})})});
-    if (!r.ok) throw new Error(`Couldn't save to GitHub (${r.status}). Check the token has Contents: read and write.`); }
+    if (!r.ok) throw new Error(r.status===403||r.status===404 ? `Couldn't save (GitHub ${r.status}): the GitHub token on this device can only read. In Settings, paste a token with Contents: Read and write for this repo.` : `Couldn't save to GitHub (${r.status}). Check the token has Contents: read and write.`); }
 }
 let vault = null;
 
@@ -627,7 +635,8 @@ function queueRows(){ return table(S.queueMd||"").filter(r=>/^\d+$/.test(r["#"]|
 async function toggleMode(){
   const mi=modeInfo(), next=!mi.on;
   const msg=next?"Turn Manager Mode ON?\n\nJarvis will keep your agents working through the task queue and add safe tasks on his own (up to "+mi.cap+" a day). Anything that needs approval still waits for your yes.":"Turn Manager Mode OFF?\n\nJarvis goes back to Reporter Mode: he watches, reports and suggests, but only starts work you ask for.";
-  if(!confirm(msg)) return;
+  if(vault instanceof DemoVault){ toast("This device isn't connected to your vault, so the switch can't be saved. Open Settings and connect GitHub first."); go("settings"); return; }
+  if(!(await askConfirm(msg, next?"Turn on":"Turn off"))) return;
   const b=$("#modeBtn"); b.disabled=true;
   await safely(async()=>{
     const stamp=new Date().toLocaleString("sv-SE",{timeZone:"America/Chicago"}).replace(" ","T").slice(0,16);
@@ -635,6 +644,7 @@ async function toggleMode(){
     const set=(k,v)=>{ const re=new RegExp("^"+k+":.*$","m"); t=re.test(t)?t.replace(re,k+": "+v):t.replace(/^---\n/,"---\n"+k+": "+v+"\n"); };
     set("mode",next?"manager":"reporter"); set("changed",stamp); set("changed_by","Leotus (Jarvis app toggle)");
     await vault.write("_jarvis/brain/mode.md",t); S.modeMd=t;
+    const check=await vault.read("_jarvis/brain/mode.md"); if(check!=null && !new RegExp("^mode:\\s*"+(next?"manager":"reporter"),"m").test(check)) throw new Error("Saved, but the vault still shows the old mode. Try again in a minute.");
     const phrase=next?"Manager mode: ON":"Manager mode: OFF";
     if(chatVault()) await chatSend(phrase); else await addToInbox(phrase);
     toast(next?"Manager Mode is on. Jarvis takes it from his next check-in.":"Manager Mode is off. Back to Reporter Mode.");
